@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>London Explorer & Greggs Radar</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    #app-container { display: flex; flex-direction: column; height: 100vh; }
+
+    /* Top Control Bar */
+    #controls {
+      background: #1e293b;
+      color: #fff;
+      padding: 10px 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    #search-box {
+      flex: 1 1 180px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #fff;
+      font-size: 14px;
+    }
+    #category-select {
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #fff;
+      font-size: 14px;
+    }
+    
+    /* Type Filter Checkboxes */
+    .filter-type-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #0f172a;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #475569;
+      font-size: 13px;
+    }
+    .filter-type-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      user-select: none;
+      font-weight: 500;
+    }
+    .filter-type-label input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: #2563eb;
+      width: 15px;
+      height: 15px;
+    }
+
+    .btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:active { background: #1d4ed8; }
+
+    /* Content Area */
+    #main-content { display: flex; flex: 1; overflow: hidden; }
+
+    /* Sidebar */
+    #sidebar {
+      width: 330px;
+      background: #f8fafc;
+      border-right: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      z-index: 500;
+    }
+    #sidebar-header {
+      padding: 12px 16px;
+      background: #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 12px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    #sidebar-list { list-style: none; }
+    .sidebar-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e2e8f0;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .sidebar-item:hover { background: #e2e8f0; }
+    .sidebar-title { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
+    .sidebar-sub { font-size: 12px; color: #64748b; margin-bottom: 6px; }
+    .badge-container { display: flex; gap: 6px; align-items: center; }
+    .sidebar-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #fff;
+      text-transform: uppercase;
+    }
+    .badge-requested { background-color: #475569; }
+    .badge-suggested { background-color: #0284c7; }
+
+    #map { flex: 1; width: 100%; height: 100%; }
+
+    /* SVG Pin Styling */
+    .custom-svg-pin { background: transparent; border: none; }
+
+    /* Custom Popup Styles */
+    .leaflet-popup-content-wrapper { border-radius: 8px; padding: 4px; max-width: 310px; }
+    .popup-title-container { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; gap: 8px; }
+    .popup-title { font-weight: 700; font-size: 15px; color: #0f172a; }
+    .popup-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; }
+    .popup-row { font-size: 12px; color: #334155; margin-bottom: 4px; line-height: 1.4; }
+    .popup-row strong { color: #0f172a; }
+    .popup-link { margin-top: 8px; font-size: 12px; font-weight: 600; }
+    .popup-link a { color: #2563eb; text-decoration: none; }
+
+
+    /* Enriched Location Details */
+    .sidebar-item { padding: 12px 14px; }
+    .sidebar-detail {
+      display: none;
+      margin-top: 9px;
+      padding-top: 9px;
+      border-top: 1px solid #cbd5e1;
+    }
+    .sidebar-item.expanded .sidebar-detail { display: block; }
+    .detail-row {
+      font-size: 11px;
+      color: #334155;
+      margin: 0 0 5px 0;
+      line-height: 1.42;
+    }
+    .detail-row strong { color: #0f172a; }
+    .detail-specialty {
+      margin-top: 7px;
+      padding: 7px 8px;
+      border-radius: 5px;
+      background: #eef2ff;
+      color: #1e293b;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .popup-details {
+      max-height: 310px;
+      overflow-y: auto;
+      padding-right: 3px;
+    }
+    .popup-section-label {
+      margin: 8px 0 4px;
+      font-size: 10px;
+      font-weight: 800;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: .45px;
+    }
+    .data-note {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 7px;
+      line-height: 1.35;
+    }
+
+    .btn-secondary { background: #475569; }
+    .btn-secondary:active { background: #334155; }
+
+    /* Grouped sidebar */
+    #sidebar-list, .cat-body { list-style: none; }
+    .cat-group { border-bottom: 1px solid #e2e8f0; }
+    .cat-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 14px;
+      background: #f1f5f9;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .cat-header:hover { background: #e2e8f0; }
+    .cat-chevron { font-size: 10px; color: #64748b; transition: transform 0.15s ease; width: 10px; }
+    .cat-group.open .cat-chevron { transform: rotate(90deg); }
+    .cat-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+    .cat-name { flex: 1; }
+    .cat-count {
+      font-size: 11px; font-weight: 700; color: #475569;
+      background: #e2e8f0; border-radius: 10px; padding: 1px 8px;
+    }
+    .cat-body { display: none; background: #f8fafc; }
+    .cat-group.open .cat-body { display: block; }
+    .cat-body .sidebar-item:last-child { border-bottom: none; }
+
+    /* About dialog */
+    #about-overlay {
+      display: none; position: fixed; inset: 0; z-index: 3000;
+      background: rgba(15, 23, 42, 0.55); align-items: center; justify-content: center;
+    }
+    #about-overlay.show { display: flex; }
+    #about-card {
+      background: #fff; color: #0f172a; border-radius: 10px; padding: 20px 24px;
+      width: min(360px, 90vw); box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    #about-card h2 { font-size: 18px; margin-bottom: 12px; }
+    .about-row { font-size: 14px; margin-bottom: 8px; color: #334155; }
+    #about-card .btn { margin-top: 8px; }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 640px) {
+      #main-content { flex-direction: column-reverse; }
+      #sidebar { width: 100%; height: 220px; border-right: none; border-top: 1px solid #e2e8f0; }
+      #controls { gap: 6px; }
+      .filter-type-group { width: 100%; justify-content: space-around; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app-container">
+  <div id="controls">
+    <input type="text" id="search-box" placeholder="Search locations..." onkeyup="filterMarkers()" />
+    
+<select id="category-select" onchange="filterMarkers()">
+  <option value="ALL">All Categories</option>
+  <!-- categories are filled in automatically from locations.js -->
+</select>
+
+
+    <!-- Classification Checkbox Filter (Placed between Category Dropdown & Find Closest) -->
+    <div class="filter-type-group">
+      <label class="filter-type-label">
+        <input type="checkbox" id="chk-requested" checked onchange="filterMarkers()" /> Requested
+      </label>
+      <label class="filter-type-label">
+        <input type="checkbox" id="chk-suggested" checked onchange="filterMarkers()" /> Suggested
+      </label>
+    </div>
+
+    <button class="btn" onclick="resetFilters()">↺ Reset Filters</button>
+    <button class="btn" onclick="locateUser()">📍 Find Closest</button>
+    <button class="btn btn-secondary" id="about-btn" onclick="showAbout()">ℹ️ About</button>
+  </div>
+
+  <div id="main-content">
+    <div id="sidebar">
+      <div id="sidebar-header">Locations Shown (<span id="location-count">0</span>)</div>
+      <ul id="sidebar-list"></ul>
+    </div>
+    <div id="map"></div>
+  </div>
+</div>
+
+<!-- About dialog -->
+<div id="about-overlay" onclick="if (event.target === this) hideAbout()">
+  <div id="about-card" role="dialog" aria-modal="true" aria-labelledby="about-title">
+    <h2 id="about-title">London Explorer &amp; Greggs Radar</h2>
+    <div class="about-row"><strong>Last revised:</strong> <span id="about-date"></span></div>
+    <div class="about-row"><strong>Locations:</strong> <span id="about-count"></span></div>
+    <button class="btn" onclick="hideAbout()">Close</button>
+  </div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+
+<!-- Location data + category colours (edit this file to add places) -->
+<script src="locations.js"></script>
+
+<script>
+
+  // SVG Pin Generator
+  function createPinIcon(color) {
+    const svg = `<svg width="25" height="35" viewBox="0 0 25 35" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12.5 0C5.596 0 0 5.596 0 12.5C0 21.875 12.5 35 12.5 35C12.5 35 25 21.875 25 12.5C25 5.596 19.404 0 12.5 0Z" fill="${color}" stroke="#ffffff" stroke-width="1.5"/>
+      <circle cx="12.5" cy="12.5" r="5" fill="#ffffff"/>
+    </svg>`;
+    return L.divIcon({
+      className: 'custom-svg-pin',
+      html: svg,
+      iconSize: [25, 35],
+      iconAnchor: [12.5, 35],
+      popupAnchor: [0, -30]
+    });
+  }
+
+  // Initialize Map
+  const map = L.map('map').setView([51.5074, -0.1278], 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+
+  // ==========================================================
+  // ENRICHED LOCATION DETAILS
+  // The Master Location Dataset supplies names, coordinates,
+  // neighborhood, Tube, addresses and any known specialty.
+  //
+  // The fields below provide structured planning guidance for
+  // every location. Location-specific values in rawLocations
+  // always override these category defaults.
+  // ==========================================================
+
+  const detailDefaults = {
+    "Historic Pubs & Bars": {
+      setting: "Historic pub / traditional London interior; mostly walk-in seating",
+      reservations: "Walk-ins usually welcome; reservations recommended for meals, groups and peak periods",
+      hours: "Check venue before visiting; typical pub service is late morning through evening",
+      bestTime: "Weekdays 2:00–5:00 PM for a quieter visit; Fri/Sat before 5:00 PM",
+      worstTime: "Fri/Sat 6:00–9:00 PM, especially around dinner and major events",
+      specialty: "Historic pub atmosphere, traditional British drinks and characterful interiors"
+    },
+    "Pub Chains": {
+      setting: "Traditional British pub / casual pub dining",
+      reservations: "Usually walk-ins; booking useful for food, groups and busy evenings",
+      hours: "Typically late morning through late evening; check the individual venue",
+      bestTime: "Weekdays mid-afternoon or early evening",
+      worstTime: "Friday/Saturday evening",
+      specialty: "Classic London pub experience with food, drinks and a relaxed atmosphere"
+    },
+    "Casual Dining & Restaurants": {
+      setting: "Casual restaurant / café-style dining",
+      reservations: "Varies by venue; walk-ins often possible, but reservations are advisable at popular restaurants",
+      hours: "Typically lunch through dinner; check the individual venue",
+      bestTime: "Weekdays 2:00–5:00 PM or early dinner around 5:00 PM",
+      worstTime: "12:00–2:00 PM and 6:30–8:30 PM, especially Fri/Sat",
+      specialty: "Casual dining with a venue-specific signature dish or experience"
+    },
+    "Fast Casual": {
+      setting: "Counter-service / fast-casual restaurant",
+      reservations: "Usually not required; walk-in and counter service",
+      hours: "Typically lunch through evening; check the individual venue",
+      bestTime: "2:00–4:00 PM between meal rushes",
+      worstTime: "12:00–2:00 PM and 6:00–8:00 PM",
+      specialty: "Quick, approachable food with a venue-specific signature"
+    },
+    "Chain Grab & Go": {
+      setting: "Counter-service grab-and-go / takeaway",
+      reservations: "No reservations; walk-in / takeaway",
+      hours: "Typically daytime through early evening; check the individual branch",
+      bestTime: "10:00–11:30 AM or 2:00–4:00 PM",
+      worstTime: "Weekday lunch 12:00–2:00 PM",
+      specialty: "Convenient grab-and-go food for sightseeing days"
+    },
+    "Convenience Stores": {
+      setting: "Retail food / convenience store",
+      reservations: "Not applicable — walk-in retail",
+      hours: "Usually daytime through evening; individual branch hours vary",
+      bestTime: "Morning or mid-afternoon for the shortest queues",
+      worstTime: "Weekday lunch and immediately after work",
+      specialty: "Useful for snacks, drinks, picnic supplies and travel provisions"
+    },
+    "Coffee": {
+      setting: "Coffee shop / café",
+      reservations: "Usually not required; walk-ins welcome",
+      hours: "Generally morning through afternoon; check the individual café",
+      bestTime: "Early morning or 2:00–4:00 PM",
+      worstTime: "8:00–10:00 AM on weekdays and weekend late morning",
+      specialty: "Coffee, pastries and a convenient stop during sightseeing"
+    },
+    "Fish & Chips": {
+      setting: "Traditional fish-and-chip shop / casual restaurant",
+      reservations: "Usually walk-ins; reservations may be useful for sit-down venues",
+      hours: "Typically lunch through evening; check the individual venue",
+      bestTime: "2:00–4:00 PM or early dinner around 5:00 PM",
+      worstTime: "12:00–2:00 PM and 6:00–8:00 PM",
+      specialty: "Classic British fish & chips; individual venue specialties shown when known"
+    },
+    "Markets & Food Halls": {
+      setting: "Open-air market / covered market / food hall",
+      reservations: "No general reservation; individual food stalls may differ",
+      hours: "Market-specific and often day-of-week dependent; verify before visiting",
+      bestTime: "Opening time through late morning for browsing; early afternoon for food",
+      worstTime: "Weekend late morning through mid-afternoon",
+      specialty: "Multiple food, craft, vintage or specialty vendors in one destination"
+    },
+    "Shopping & Streets": {
+      setting: "Retail district, shop, market street or specialty store",
+      reservations: "Usually not required; some specialty experiences may require booking",
+      hours: "Generally daytime into early evening; individual shop hours vary",
+      bestTime: "Weekday late morning or early afternoon",
+      worstTime: "Saturday 12:00–4:00 PM",
+      specialty: "Shopping destination; see the venue-specific feature when supplied"
+    },
+    "Quirky Museums & Sites": {
+      setting: "Indoor museum / historic or cultural attraction",
+      reservations: "Varies; free museums may be walk-in while timed-entry attractions may require advance booking",
+      hours: "Usually daytime; closed days and last admission vary by museum",
+      bestTime: "Opening time or last 1–2 hours before closing",
+      worstTime: "Weekend 11:00 AM–3:00 PM and school holidays",
+      specialty: "Museum or unusual cultural attraction; venue-specific feature shown when known"
+    },
+    "Themed Afternoon Tea": {
+      setting: "Seated afternoon-tea experience / themed hospitality venue",
+      reservations: "Advance reservation strongly recommended; often essential",
+      hours: "Usually scheduled afternoon-tea sittings rather than all-day service",
+      bestTime: "Weekdays, especially the first or later sitting",
+      worstTime: "Saturday/Sunday afternoon and holiday periods",
+      specialty: "Themed afternoon tea or distinctive tea-room experience"
+    },
+    "Photo Spots & Public Art": {
+      setting: "Public space / architectural attraction / outdoor or immersive photo location",
+      reservations: "Usually none; some attractions may use timed entry",
+      hours: "Public-space access varies; indoor attractions follow venue hours",
+      bestTime: "Early morning for light and fewer people; golden hour for many exterior scenes",
+      worstTime: "Weekend midday and peak tourist hours",
+      specialty: "Photogenic landmark, architecture, public art or unusual visual experience"
+    },
+    "Iconic Landmarks & Museums": {
+      setting: "Major London landmark / public attraction",
+      reservations: "Varies; many are walk-up, while major paid attractions often benefit from timed tickets",
+      hours: "Attraction-specific; verify official hours and last entry",
+      bestTime: "Early morning or late afternoon; book timed entry where available",
+      worstTime: "Weekend 11:00 AM–4:00 PM and school holidays",
+      specialty: "Major London landmark or must-see attraction"
+    },
+    "Vintage & Thrift Shops": {
+      setting: "Vintage clothing / charity or thrift shop",
+      reservations: "Not required; walk-in retail",
+      hours: "Generally daytime into early evening; individual shop hours vary",
+      bestTime: "Weekday mornings or early afternoon for the best stock and space to browse",
+      worstTime: "Saturday 12:00-4:00 PM",
+      specialty: "Vintage, second-hand or thrift finds; see the venue-specific feature when supplied"
+    },
+    "Greggs Radar": {
+      setting: "Counter-service bakery / grab-and-go shop",
+      reservations: "No reservations; walk-in / takeaway",
+      hours: "Branch-specific; generally morning through evening",
+      bestTime: "Early morning or 2:00–4:00 PM",
+      worstTime: "Weekday lunch 12:00–2:00 PM",
+      specialty: "Greggs bakery, breakfast and grab-and-go staples"
+    }
+  };
+
+  function getFormattedLoc(loc) {
+    const d = detailDefaults[loc.cat] || detailDefaults["Casual Dining & Restaurants"];
+    return {
+      name: loc.name,
+      cat: loc.cat,
+      type: loc.type || "Requested",
+      lat: loc.lat,
+      lng: loc.lng,
+      neighborhood: loc.neighborhood || "Central London",
+      address: loc.address || `${loc.name}, London, UK`,
+      tube: loc.tube || "Check nearest Tube station",
+      setting: loc.setting || d.setting,
+      reservations: loc.reservations || d.reservations,
+      hours: loc.hours || d.hours,
+      bestTime: loc.bestDaysTime || d.bestTime,
+      worstTime: loc.worstDaysTime || d.worstTime,
+      specialty: loc.specialty || d.specialty
+    };
+  }
+
+  function escapeHTML(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  let markerStore = [];
+  let userMarker = null;
+
+  function buildDetailsHTML(loc) {
+    return `
+      <div class="popup-details">
+        <div class="popup-row"><strong>Neighborhood:</strong> ${escapeHTML(loc.neighborhood)}</div>
+        <div class="popup-row"><strong>Tube:</strong> ${escapeHTML(loc.tube)}</div>
+        <div class="popup-row"><strong>Setting:</strong> ${escapeHTML(loc.setting)}</div>
+        <div class="popup-row"><strong>Reservations:</strong> ${escapeHTML(loc.reservations)}</div>
+        <div class="popup-row"><strong>Hours:</strong> ${escapeHTML(loc.hours)}</div>
+        <div class="popup-row"><strong>Best Days/Time:</strong> ${escapeHTML(loc.bestTime)}</div>
+        <div class="popup-row"><strong>Worst Days/Time:</strong> ${escapeHTML(loc.worstTime)}</div>
+        <div class="detail-specialty"><strong>Specialty / Feature / Main Attraction:</strong><br>${escapeHTML(loc.specialty)}</div>
+      </div>`;
+  }
+
+  // Render markers and popups.
+  function loadMarkers() {
+    rawLocations.forEach((raw, i) => {
+      if (!raw || !raw.name || typeof raw.lat !== 'number' || typeof raw.lng !== 'number') {
+        console.warn(`locations.js: entry #${i + 1} skipped (needs name, lat and lng as numbers):`, raw);
+        return;
+      }
+      if (!categoryColors[raw.cat]) console.warn(`locations.js: "${raw.name}" uses unknown category "${raw.cat}" (add it to categoryColors).`);
+      if (raw.type && raw.type !== "Requested" && raw.type !== "Suggested") console.warn(`locations.js: "${raw.name}" has type "${raw.type}"; use "Requested" or "Suggested".`);
+      const loc = getFormattedLoc(raw);
+      const pinColor = (categoryColors[loc.cat] && categoryColors[loc.cat].color) || '#3b82f6';
+      const customIcon = createPinIcon(pinColor);
+      const m = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(map);
+
+      const typeBadgeClass = loc.type === "Suggested" ? "badge-suggested" : "badge-requested";
+
+      const popupHTML = `
+        <div class="popup-title-container">
+          <div class="popup-title">${escapeHTML(loc.name)}</div>
+          <span class="sidebar-badge ${typeBadgeClass}">${escapeHTML(loc.type)}</span>
+        </div>
+        <div class="popup-cat" style="color:${pinColor}">
+          ${escapeHTML(loc.cat)} • ${escapeHTML(loc.neighborhood)}
+        </div>
+        ${buildDetailsHTML(loc)}
+        <div class="popup-link">
+          <a href="https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}" target="_blank" rel="noopener">
+            🗺️ Open Directions in Google Maps
+          </a>
+        </div>
+      `;
+
+      m.bindPopup(popupHTML, { maxWidth: 340 });
+      markerStore.push({ marker: m, data: loc, color: pinColor });
+    });
+
+    updateSidebar(markerStore);
+  }
+
+  // ----- Sidebar grouping state -----
+  // Every category starts collapsed on launch.
+  const openCats = new Set();      // groups the user opened (normal mode)
+  const filterClosed = new Set();  // groups the user closed while a search/filter is active
+
+  function filtersActive() {
+    return document.getElementById('search-box').value.trim() !== '' ||
+           document.getElementById('category-select').value !== 'ALL' ||
+           !document.getElementById('chk-requested').checked ||
+           !document.getElementById('chk-suggested').checked;
+  }
+
+  // Known categories (in locations.js order), then any extras found in the data.
+  function categoryOrder() {
+    const order = Object.keys(categoryColors);
+    rawLocations.forEach(l => {
+      if (l && l.cat && !order.includes(l.cat)) order.push(l.cat);
+    });
+    return order;
+  }
+
+  function populateCategorySelect() {
+    const sel = document.getElementById('category-select');
+    categoryOrder().forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      sel.appendChild(opt);
+    });
+  }
+
+  function buildSidebarItem(item) {
+    const li = document.createElement('li');
+    li.className = 'sidebar-item';
+
+    const typeBadgeClass = item.data.type === "Suggested" ? "badge-suggested" : "badge-requested";
+
+    li.innerHTML = `
+      <div class="sidebar-title">${escapeHTML(item.data.name)}</div>
+      <div class="sidebar-sub">📍 ${escapeHTML(item.data.neighborhood)} | 🚇 ${escapeHTML(item.data.tube)}</div>
+      <div class="badge-container">
+        <span class="sidebar-badge ${typeBadgeClass}">${escapeHTML(item.data.type)}</span>
+      </div>
+      <div class="sidebar-detail">
+        <div class="detail-row"><strong>Setting:</strong> ${escapeHTML(item.data.setting)}</div>
+        <div class="detail-row"><strong>Reservations:</strong> ${escapeHTML(item.data.reservations)}</div>
+        <div class="detail-row"><strong>Hours:</strong> ${escapeHTML(item.data.hours)}</div>
+        <div class="detail-row"><strong>Best:</strong> ${escapeHTML(item.data.bestTime)}</div>
+        <div class="detail-row"><strong>Worst:</strong> ${escapeHTML(item.data.worstTime)}</div>
+        <div class="detail-specialty"><strong>Specialty / Feature:</strong><br>${escapeHTML(item.data.specialty)}</div>
+      </div>
+    `;
+
+    li.onclick = () => {
+      document.querySelectorAll('.sidebar-item.expanded').forEach(el => {
+        if (el !== li) el.classList.remove('expanded');
+      });
+      li.classList.toggle('expanded');
+      map.setView([item.data.lat, item.data.lng], 16);
+      item.marker.openPopup();
+    };
+    return li;
+  }
+
+  function updateSidebar(visibleItems) {
+    const listEl = document.getElementById('sidebar-list');
+    const countEl = document.getElementById('location-count');
+    listEl.innerHTML = '';
+    countEl.textContent = visibleItems.length;
+
+    const active = filtersActive();
+
+    const groups = new Map();
+    categoryOrder().forEach(cat => groups.set(cat, []));
+    visibleItems.forEach(item => {
+      if (!groups.has(item.data.cat)) groups.set(item.data.cat, []);
+      groups.get(item.data.cat).push(item);
+    });
+
+    groups.forEach((items, cat) => {
+      if (items.length === 0) return;
+
+      const color = (categoryColors[cat] && categoryColors[cat].color) || '#3b82f6';
+      // Collapsed by default; while searching/filtering, groups with matches open automatically.
+      const isOpen = active ? !filterClosed.has(cat) : openCats.has(cat);
+
+      const group = document.createElement('li');
+      group.className = 'cat-group' + (isOpen ? ' open' : '');
+
+      const header = document.createElement('button');
+      header.type = 'button';
+      header.className = 'cat-header';
+      header.setAttribute('aria-expanded', String(isOpen));
+      header.innerHTML = `
+        <span class="cat-chevron">▶</span>
+        <span class="cat-dot" style="background:${color}"></span>
+        <span class="cat-name">${escapeHTML(cat)}</span>
+        <span class="cat-count">${items.length}</span>`;
+      header.onclick = () => {
+        const nowOpen = !group.classList.contains('open');
+        group.classList.toggle('open', nowOpen);
+        header.setAttribute('aria-expanded', String(nowOpen));
+        if (filtersActive()) { nowOpen ? filterClosed.delete(cat) : filterClosed.add(cat); }
+        else                 { nowOpen ? openCats.add(cat)       : openCats.delete(cat); }
+      };
+
+      const body = document.createElement('ul');
+      body.className = 'cat-body';
+      items.forEach(item => body.appendChild(buildSidebarItem(item)));
+
+      group.appendChild(header);
+      group.appendChild(body);
+      listEl.appendChild(group);
+    });
+  }
+
+  function filterMarkers() {
+    filterClosed.clear();
+    const searchVal = document.getElementById('search-box').value.trim().toLowerCase();
+    const catVal = document.getElementById('category-select').value;
+    const showRequested = document.getElementById('chk-requested').checked;
+    const showSuggested = document.getElementById('chk-suggested').checked;
+
+    const visibleItems = [];
+
+    markerStore.forEach(item => {
+      const d = item.data;
+      const searchable = [
+        d.name, d.cat, d.type, d.neighborhood, d.tube, d.address,
+        d.setting, d.reservations, d.hours, d.bestTime, d.worstTime, d.specialty
+      ].join(" ").toLowerCase();
+
+      const matchesSearch = !searchVal || searchable.includes(searchVal);
+      const matchesCat = catVal === 'ALL' || d.cat === catVal;
+      const matchesType =
+        (d.type === 'Requested' && showRequested) ||
+        (d.type === 'Suggested' && showSuggested);
+
+      if (matchesSearch && matchesCat && matchesType) {
+        if (!map.hasLayer(item.marker)) map.addLayer(item.marker);
+        visibleItems.push(item);
+      } else if (map.hasLayer(item.marker)) {
+        map.removeLayer(item.marker);
+      }
+    });
+
+    updateSidebar(visibleItems);
+  }
+
+  function resetFilters() {
+    document.getElementById('search-box').value = '';
+    document.getElementById('category-select').value = 'ALL';
+    document.getElementById('chk-requested').checked = true;
+    document.getElementById('chk-suggested').checked = true;
+    filterMarkers();
+
+    if (userMarker) {
+      map.removeLayer(userMarker);
+      userMarker = null;
+    }
+
+    map.setView([51.5074, -0.1278], 13);
+  }
+
+  function locateUser() {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const uLat = pos.coords.latitude;
+        const uLng = pos.coords.longitude;
+
+        if (userMarker) map.removeLayer(userMarker);
+
+        userMarker = L.circleMarker([uLat, uLng], {
+          radius: 9,
+          fillColor: '#2563eb',
+          color: '#ffffff',
+          weight: 3,
+          opacity: 1,
+          fillOpacity: 0.9
+        }).addTo(map).bindPopup("<b>You Are Here</b>").openPopup();
+
+        let closest = null;
+        let minDistance = Infinity;
+
+        markerStore.forEach(item => {
+          if (map.hasLayer(item.marker)) {
+            const loc = item.data;
+            const dist = map.distance([uLat, uLng], [loc.lat, loc.lng]);
+            if (dist < minDistance) {
+              minDistance = dist;
+              closest = loc;
+            }
+          }
+        });
+
+        if (closest) {
+          map.setView([uLat, uLng], 15);
+          alert(`Nearest visible spot is "${closest.name}" (${Math.round(minDistance)} meters away).`);
+        } else {
+          map.setView([uLat, uLng], 14);
+        }
+      },
+      () => alert("Unable to retrieve your current location. Please check GPS permissions.")
+    );
+  }
+
+
+  // ----- About dialog -----
+  function formatRevisionDate(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+    if (!m) return s || 'Unknown';
+    return new Date(+m[1], +m[2] - 1, +m[3])
+      .toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+  function showAbout() {
+    document.getElementById('about-date').textContent =
+      formatRevisionDate(typeof LAST_REVISED !== 'undefined' ? LAST_REVISED : '');
+    document.getElementById('about-count').textContent = markerStore.length;
+    document.getElementById('about-overlay').classList.add('show');
+  }
+  function hideAbout() {
+    document.getElementById('about-overlay').classList.remove('show');
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideAbout(); });
+
+  populateCategorySelect();
+  loadMarkers();
+</script>
+</body>
+</html>
