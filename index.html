@@ -95,7 +95,10 @@
       z-index: 500;
     }
     #sidebar-header {
-      padding: 12px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 10px 16px 12px;
       background: #f1f5f9;
       border-bottom: 1px solid #e2e8f0;
       font-size: 12px;
@@ -104,6 +107,22 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+    .sidebar-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .sidebar-actions button {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #fff;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
+      cursor: pointer;
+    }
+    .sidebar-actions button:hover { background: #e2e8f0; }
+    .sidebar-actions button:active { background: #cbd5e1; }
     #sidebar-list { list-style: none; }
     .sidebar-item {
       padding: 12px 16px;
@@ -260,10 +279,10 @@
     <!-- Classification Checkbox Filter (Placed between Category Dropdown & Find Closest) -->
     <div class="filter-type-group">
       <label class="filter-type-label">
-        <input type="checkbox" id="chk-requested" checked onchange="filterMarkers()" /> Requested
+        <input type="checkbox" id="chk-requested" checked onchange="filterMarkers(true)" /> Requested
       </label>
       <label class="filter-type-label">
-        <input type="checkbox" id="chk-suggested" checked onchange="filterMarkers()" /> Suggested
+        <input type="checkbox" id="chk-suggested" checked onchange="filterMarkers(true)" /> Suggested
       </label>
     </div>
 
@@ -274,7 +293,13 @@
 
   <div id="main-content">
     <div id="sidebar">
-      <div id="sidebar-header">Locations Shown (<span id="location-count">0</span>)</div>
+      <div id="sidebar-header">
+        <div>Locations Shown (<span id="location-count">0</span>)</div>
+        <div class="sidebar-actions">
+          <button type="button" id="expand-all-btn" onclick="setAllGroups(true)">Expand all</button>
+          <button type="button" id="collapse-all-btn" onclick="setAllGroups(false)">Collapse all</button>
+        </div>
+      </div>
       <ul id="sidebar-list"></ul>
     </div>
     <div id="map"></div>
@@ -554,11 +579,30 @@
   const openCats = new Set();      // groups the user opened (normal mode)
   const filterClosed = new Set();  // groups the user closed while a search/filter is active
 
+  // Set when the Requested/Suggested boxes change: groups then reset to collapsed,
+  // even if a search is active. Cleared again as soon as search/category changes.
+  let suspendAutoExpand = false;
+
+  // Searching or picking a category auto-expands the groups that have matches.
+  // (The Requested/Suggested checkboxes do not: they reset everything to collapsed.)
   function filtersActive() {
     return document.getElementById('search-box').value.trim() !== '' ||
-           document.getElementById('category-select').value !== 'ALL' ||
-           !document.getElementById('chk-requested').checked ||
-           !document.getElementById('chk-suggested').checked;
+           document.getElementById('category-select').value !== 'ALL';
+  }
+  function autoExpanding() {
+    return filtersActive() && !suspendAutoExpand;
+  }
+
+  // Expand all / Collapse all buttons: act on the groups currently shown.
+  function setAllGroups(open) {
+    const auto = autoExpanding();
+    document.querySelectorAll('#sidebar-list .cat-group').forEach(group => {
+      const cat = group.dataset.cat;
+      group.classList.toggle('open', open);
+      group.querySelector('.cat-header').setAttribute('aria-expanded', String(open));
+      if (auto) { open ? filterClosed.delete(cat) : filterClosed.add(cat); }
+      else      { open ? openCats.add(cat)       : openCats.delete(cat); }
+    });
   }
 
   // Known categories (in locations.js order), then any extras found in the data.
@@ -619,7 +663,7 @@
     listEl.innerHTML = '';
     countEl.textContent = visibleItems.length;
 
-    const active = filtersActive();
+    const active = autoExpanding();
 
     const groups = new Map();
     categoryOrder().forEach(cat => groups.set(cat, []));
@@ -637,6 +681,7 @@
 
       const group = document.createElement('li');
       group.className = 'cat-group' + (isOpen ? ' open' : '');
+      group.dataset.cat = cat;
 
       const header = document.createElement('button');
       header.type = 'button';
@@ -651,7 +696,7 @@
         const nowOpen = !group.classList.contains('open');
         group.classList.toggle('open', nowOpen);
         header.setAttribute('aria-expanded', String(nowOpen));
-        if (filtersActive()) { nowOpen ? filterClosed.delete(cat) : filterClosed.add(cat); }
+        if (autoExpanding()) { nowOpen ? filterClosed.delete(cat) : filterClosed.add(cat); }
         else                 { nowOpen ? openCats.add(cat)       : openCats.delete(cat); }
       };
 
@@ -665,8 +710,11 @@
     });
   }
 
-  function filterMarkers() {
+  // collapse === true when called from the Requested/Suggested checkboxes.
+  function filterMarkers(collapse) {
     filterClosed.clear();
+    suspendAutoExpand = (collapse === true);
+    if (collapse === true) openCats.clear();
     const searchVal = document.getElementById('search-box').value.trim().toLowerCase();
     const catVal = document.getElementById('category-select').value;
     const showRequested = document.getElementById('chk-requested').checked;
