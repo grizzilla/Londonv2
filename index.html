@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="referrer" content="origin-when-cross-origin" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>London Explorer & Greggs Radar</title>
 
   <!-- Leaflet CSS -->
@@ -12,38 +12,17 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body, html { height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    #app-container { display: flex; flex-direction: column; height: 100vh; }
+    #app-container { display: flex; flex-direction: column; height: 100vh; height: 100dvh; min-height: 0; }
 
-    /* Top Control Bar */
-    #controls {
-      background: #1e293b;
-      color: #fff;
-      padding: 10px 14px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      z-index: 1000;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-    #search-box {
-      flex: 1 1 180px;
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: 1px solid #475569;
-      background: #0f172a;
-      color: #fff;
-      font-size: 14px;
-    }
-    #category-select {
-      padding: 8px 10px;
-      border-radius: 6px;
-      border: 1px solid #475569;
-      background: #0f172a;
-      color: #fff;
-      font-size: 14px;
-    }
-    
+    /* Compact, two-row control bar */
+    #controls { background:#1e293b; color:#fff; padding:8px 12px; display:flex; flex-wrap:wrap; gap:7px 10px; align-items:center; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,.2); }
+    .control-row { display:flex; align-items:center; gap:7px; min-width:0; }
+    .control-row-search { flex:1 1 260px; }
+    .control-row-filters { flex:0 1 auto; }
+    #search-box { flex:1 1 180px; min-width:0; padding:8px 12px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:#fff; font-size:14px; }
+    #category-select { min-width:0; max-width: min(48vw, 300px); padding:8px 10px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:#fff; font-size:14px; }
+    .about-icon { width:36px; height:36px; padding:0; flex:0 0 36px; font-size:22px; line-height:1; border-radius:50%; }
+
     /* Type Filter Checkboxes */
     .filter-type-group {
       display: flex;
@@ -82,48 +61,18 @@
     }
     .btn:active { background: #1d4ed8; }
 
-    /* Content Area */
-    #main-content { display: flex; flex: 1; overflow: hidden; }
-
-    /* Sidebar */
-    #sidebar {
-      width: 330px;
-      background: #f8fafc;
-      border-right: 1px solid #e2e8f0;
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      z-index: 500;
-    }
-    #sidebar-header {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      padding: 10px 16px 12px;
-      background: #f1f5f9;
-      border-bottom: 1px solid #e2e8f0;
-      font-size: 12px;
-      font-weight: 700;
-      color: #475569;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .sidebar-actions { display: flex; gap: 8px; margin-top: 8px; }
-    .sidebar-actions button {
-      flex: 1;
-      padding: 6px 8px;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      background: #fff;
-      color: #334155;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0;
-      text-transform: none;
-      cursor: pointer;
-    }
-    .sidebar-actions button:hover { background: #e2e8f0; }
-    .sidebar-actions button:active { background: #cbd5e1; }
+    /* Resizable map / location-list workspace */
+    #main-content { display:flex; flex:1; min-height:0; min-width:0; overflow:hidden; }
+    #sidebar { flex:0 0 330px; width:330px; min-width:180px; min-height:0; background:#f8fafc; border-right:1px solid #e2e8f0; display:flex; flex-direction:column; overflow-y:auto; overflow-x:hidden; z-index:500; }
+    #sidebar-header { position:sticky; top:0; z-index:2; padding:8px 10px; background:#f1f5f9; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:.35px; }
+    .sidebar-heading { white-space:nowrap; }
+    .sidebar-actions { display:flex; align-items:center; gap:5px; margin:0; flex:0 0 auto; }
+    .sidebar-actions button { padding:5px 7px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:11px; font-weight:600; letter-spacing:0; text-transform:none; white-space:nowrap; cursor:pointer; }
+    .sidebar-actions button:hover { background:#e2e8f0; }
+    #resize-handle { flex:0 0 8px; background:#cbd5e1; cursor:col-resize; position:relative; z-index:600; touch-action:none; }
+    #resize-handle::after { content:""; position:absolute; width:3px; height:34px; border-radius:3px; background:#64748b; left:50%; top:50%; transform:translate(-50%,-50%); }
+    #resize-handle:hover, #resize-handle.dragging { background:#93c5fd; }
+    #map { flex:1 1 auto; width:0; min-width:0; height:100%; }
     #sidebar-list { list-style: none; }
     .sidebar-item {
       padding: 12px 16px;
@@ -151,6 +100,7 @@
 
     /* SVG Pin Styling */
     .custom-svg-pin { background: transparent; border: none; }
+    .custom-svg-pin svg { filter: drop-shadow(0 2px 3px rgba(0,0,0,.55)); }
 
     /* Custom Popup Styles */
     .leaflet-popup-content-wrapper { border-radius: 8px; padding: 4px; max-width: 310px; }
@@ -265,12 +215,38 @@
     .filter-type-label.must-label { color: #fcd34d; }
     .filter-type-label.must-label input { accent-color: #D4AF37; }
 
-    /* Mobile Responsiveness */
-    @media (max-width: 640px) {
-      #main-content { flex-direction: column-reverse; }
-      #sidebar { width: 100%; height: 220px; border-right: none; border-top: 1px solid #e2e8f0; }
-      #controls { gap: 6px; }
-      .filter-type-group { width: 100%; justify-content: space-around; }
+    /* Phone portrait: map above a vertically resizable bottom list. */
+    @media (max-width: 700px) and (orientation: portrait) {
+      #controls { padding:6px 8px; gap:5px; }
+      .control-row-search { flex:1 1 100%; }
+      .control-row-filters { flex:1 1 100%; }
+      #category-select { flex:1 1 auto; max-width:none; }
+      .control-row-filters .btn { padding:8px 9px; font-size:12px; white-space:nowrap; }
+      .filter-type-group { width:100%; justify-content:space-around; gap:5px; padding:5px 7px; font-size:11px; }
+      #main-content { flex-direction:column; }
+      #map { order:0; width:100%; height:auto; flex:1 1 auto; min-height:100px; }
+      #resize-handle { order:1; flex:0 0 10px; cursor:row-resize; }
+      #resize-handle::after { width:38px; height:3px; }
+      #sidebar { order:2; flex:0 0 34%; width:100%; min-width:0; min-height:90px; border-right:0; border-top:1px solid #e2e8f0; }
+      #sidebar-header { padding:6px 9px; }
+    }
+    /* Phone landscape: list at left, map at right; drag the vertical divider. */
+    @media (max-width: 900px) and (orientation: landscape) and (max-height: 600px) {
+      #controls { padding:5px 8px; gap:5px 8px; }
+      .control-row-search { flex:1 1 210px; }
+      .control-row-filters { flex:1 1 auto; }
+      .filter-type-group { padding:4px 7px; gap:8px; font-size:11px; }
+      .control-row-filters .btn { padding:6px 8px; font-size:12px; }
+      #main-content { flex-direction:row; }
+      #sidebar { order:0; flex:0 0 38%; width:38%; min-width:170px; border-right:1px solid #e2e8f0; border-top:0; }
+      #resize-handle { order:1; flex:0 0 8px; cursor:col-resize; }
+      #resize-handle::after { width:3px; height:30px; }
+      #map { order:2; flex:1 1 auto; width:0; }
+      #sidebar-header { padding:5px 7px; }
+      .sidebar-actions button { padding:4px 5px; font-size:10px; }
+    }
+    @media (min-width: 701px) {
+      #sidebar { flex-basis:330px; }
     }
   </style>
 </head>
@@ -278,36 +254,28 @@
 
 <div id="app-container">
   <div id="controls">
-    <input type="text" id="search-box" placeholder="Search locations..." onkeyup="filterMarkers()" />
-    
-<select id="category-select" onchange="catChanged()">
-  <option value="ALL">All Categories</option>
-  <!-- categories are filled in automatically from locations.js -->
-</select>
-
-
-    <!-- Classification Checkbox Filter (Placed between Category Dropdown & Find Closest) -->
-    <div class="filter-type-group">
-      <label class="filter-type-label">
-        <input type="checkbox" id="chk-requested" checked onchange="filterMarkers(true)" /> Requested
-      </label>
-      <label class="filter-type-label">
-        <input type="checkbox" id="chk-suggested" checked onchange="filterMarkers(true)" /> Suggested
-      </label>
-      <label class="filter-type-label must-label">
-        <input type="checkbox" id="chk-must" onchange="mustChanged()" /> ★ Must See
-      </label>
+    <div class="control-row control-row-search">
+      <input type="text" id="search-box" placeholder="Search locations..." onkeyup="filterMarkers()" />
+      <button class="btn btn-secondary about-icon" id="about-btn" onclick="showAbout()" aria-label="About" title="About">ⓘ</button>
     </div>
-
-    <button class="btn" onclick="resetFilters()">↺ Reset Filters</button>
-    <button class="btn" onclick="locateUser()">📍 Find Closest</button>
-    <button class="btn btn-secondary" id="about-btn" onclick="showAbout()">ℹ️ About</button>
+    <div class="control-row control-row-filters">
+      <select id="category-select" onchange="catChanged()">
+        <option value="ALL">All Categories</option>
+        <!-- categories are filled in automatically from locations.js -->
+      </select>
+      <button class="btn" onclick="resetFilters()">↺ Reset</button>
+      <button class="btn" onclick="locateUser()">📍 Find Closest</button>
+    </div>
+    <div class="filter-type-group">
+      <label class="filter-type-label"><input type="checkbox" id="chk-requested" checked onchange="filterMarkers(true)" /> Requested</label>
+      <label class="filter-type-label"><input type="checkbox" id="chk-suggested" checked onchange="filterMarkers(true)" /> Suggested</label>
+      <label class="filter-type-label must-label"><input type="checkbox" id="chk-must" onchange="mustChanged()" /> ★ Must See</label>
+    </div>
   </div>
-
   <div id="main-content">
     <div id="sidebar">
       <div id="sidebar-header">
-        <div>Locations Shown (<span id="location-count">0</span>)</div>
+        <div class="sidebar-heading">Locations Shown (<span id="location-count">0</span>)</div>
         <div class="sidebar-actions">
           <button type="button" id="expand-all-btn" onclick="setAllGroups(true)">Expand all</button>
           <button type="button" id="collapse-all-btn" onclick="setAllGroups(false)">Collapse all</button>
@@ -315,6 +283,7 @@
       </div>
       <ul id="sidebar-list"></ul>
     </div>
+    <div id="resize-handle" role="separator" aria-label="Resize map and location list" aria-orientation="vertical" tabindex="0" title="Drag to resize map and location list"></div>
     <div id="map"></div>
   </div>
 </div>
@@ -488,7 +457,7 @@
         <div class="popup-cats">${catLine}</div>
         ${buildDetailsHTML(loc)}
         <div class="popup-link">
-          <a href="https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}" target="_blank" rel="noopener">
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat}%2C${loc.lng}&travelmode=walking" target="_blank" rel="noopener">
             \ud83d\uddfa\ufe0f Open Directions in Google Maps
           </a>
         </div>
@@ -784,6 +753,50 @@
     document.getElementById('about-overlay').classList.remove('show');
   }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') hideAbout(); });
+
+  // Draggable divider: adjusts sidebar width on desktop/landscape and height in portrait.
+  (function setupResizablePanels() {
+    const handle = document.getElementById('resize-handle');
+    const sidebar = document.getElementById('sidebar');
+    const workspace = document.getElementById('main-content');
+    if (!handle || !sidebar || !workspace) return;
+    let dragging = false;
+    const isPortraitPhone = () => window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches;
+    handle.addEventListener('pointerdown', e => {
+      dragging = true;
+      handle.classList.add('dragging');
+      handle.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    handle.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const rect = workspace.getBoundingClientRect();
+      if (isPortraitPhone()) {
+        const h = Math.max(90, Math.min(rect.height - 100, rect.bottom - e.clientY));
+        sidebar.style.flexBasis = `${h}px`;
+      } else {
+        const w = Math.max(170, Math.min(rect.width * 0.65, e.clientX - rect.left));
+        sidebar.style.flexBasis = `${w}px`;
+      }
+      map.invalidateSize({ pan:false });
+    });
+    const stop = () => { dragging = false; handle.classList.remove('dragging'); };
+    handle.addEventListener('pointerup', stop);
+    handle.addEventListener('pointercancel', stop);
+    handle.addEventListener('keydown', e => {
+      if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
+      e.preventDefault();
+      if (isPortraitPhone()) {
+        const current = sidebar.getBoundingClientRect().height;
+        sidebar.style.flexBasis = `${Math.max(90, current + (e.key === 'ArrowUp' ? 25 : e.key === 'ArrowDown' ? -25 : 0))}px`;
+      } else {
+        const current = sidebar.getBoundingClientRect().width;
+        sidebar.style.flexBasis = `${Math.max(170, current + (e.key === 'ArrowRight' ? 25 : e.key === 'ArrowLeft' ? -25 : 0))}px`;
+      }
+      map.invalidateSize({ pan:false });
+    });
+    window.addEventListener('resize', () => map.invalidateSize({ pan:false }));
+  })();
 
   populateCategorySelect();
   loadMarkers();
