@@ -33,7 +33,7 @@ const categoryColors = {
   "Markets & Food Halls": { color: "#10b981" },
   "Shopping & Streets": { color: "#ec4899" },
   "Iconic Landmarks & Museums": { color: "#3b82f6" },
-  "Greggs Radar": { color: "#f59e0b" },
+  "Greggs Radar": { color: "#00598E" },
   "Quirky Museums & Sites": { color: "#06b6d4" },
   "Themed Afternoon Tea": { color: "#d946ef" },
   "Photo Spots & Public Art": { color: "#84cc16" },
