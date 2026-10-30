@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta name="referrer" content="origin-when-cross-origin" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>London Explorer & Greggs Radar</title>
 
@@ -367,10 +367,23 @@
   // Initialize Map
   const map = L.map('map').setView([51.5074, -0.1278], 13);
 
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, USGS, and the GIS User Community',
+  // Basemap: OpenStreetMap first (as in v1). If OSM refuses the tiles
+  // (e.g. page opened without a referrer), switch automatically to Esri.
+  const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 19
   }).addTo(map);
+  const esriLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, USGS, and the GIS User Community',
+    maxZoom: 19
+  });
+  let tileErrors = 0;
+  osmLayer.on('tileerror', () => {
+    if (++tileErrors >= 3 && map.hasLayer(osmLayer)) {
+      map.removeLayer(osmLayer);
+      esriLayer.addTo(map);
+    }
+  });
 
 
   // ==========================================================
