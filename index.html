@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>London Explorer & Greggs Radar</title>
 
@@ -255,6 +256,15 @@
     .about-row { font-size: 14px; margin-bottom: 8px; color: #334155; }
     #about-card .btn { margin-top: 8px; }
 
+    /* Multi-category chips, Must See badge, confidence note */
+    .badge-must { background-color: #D4AF37; color: #1e293b; }
+    .cat-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 6px; }
+    .cat-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; color: #334155; background: #e2e8f0; border-radius: 10px; padding: 1px 7px; }
+    .cat-chip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .popup-cats { font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; line-height: 1.5; }
+    .filter-type-label.must-label { color: #fcd34d; }
+    .filter-type-label.must-label input { accent-color: #D4AF37; }
+
     /* Mobile Responsiveness */
     @media (max-width: 640px) {
       #main-content { flex-direction: column-reverse; }
@@ -270,7 +280,7 @@
   <div id="controls">
     <input type="text" id="search-box" placeholder="Search locations..." onkeyup="filterMarkers()" />
     
-<select id="category-select" onchange="filterMarkers()">
+<select id="category-select" onchange="catChanged()">
   <option value="ALL">All Categories</option>
   <!-- categories are filled in automatically from locations.js -->
 </select>
@@ -283,6 +293,9 @@
       </label>
       <label class="filter-type-label">
         <input type="checkbox" id="chk-suggested" checked onchange="filterMarkers(true)" /> Suggested
+      </label>
+      <label class="filter-type-label must-label">
+        <input type="checkbox" id="chk-must" onchange="mustChanged()" /> ★ Must See
       </label>
     </div>
 
@@ -324,16 +337,28 @@
 
 <script>
 
-  // SVG Pin Generator
-  function createPinIcon(color) {
-    const svg = `<svg width="25" height="35" viewBox="0 0 25 35" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12.5 0C5.596 0 0 5.596 0 12.5C0 21.875 12.5 35 12.5 35C12.5 35 25 21.875 25 12.5C25 5.596 19.404 0 12.5 0Z" fill="${color}" stroke="#ffffff" stroke-width="1.5"/>
-      <circle cx="12.5" cy="12.5" r="5" fill="#ffffff"/>
+  const MUST_SEE = "MUST SEE";
+  let pinSeq = 0;
+
+  // SVG pin: one colour per category (vertical bands); gold star badge for Must See places.
+  function createPinIcon(colors, mustSee) {
+    const uid = ++pinSeq;
+    const w = 25 / colors.length;
+    const bands = colors.map((c, i) => `<rect x="${(i * w).toFixed(2)}" y="0" width="${(w + 0.4).toFixed(2)}" height="35" fill="${c}"/>`).join('');
+    const pinPath = "M12.5 0C5.596 0 0 5.596 0 12.5C0 21.875 12.5 35 12.5 35C12.5 35 25 21.875 25 12.5C25 5.596 19.404 0 12.5 0Z";
+    const badge = mustSee
+      ? `<circle cx="25" cy="6" r="6" fill="#D4AF37" stroke="#ffffff" stroke-width="1.2"/><text x="25" y="9.4" font-size="9" text-anchor="middle" fill="#1e293b" font-family="Arial,sans-serif">\u2605</text>`
+      : '';
+    const svg = `<svg width="31" height="35" viewBox="0 0 31 35" xmlns="http://www.w3.org/2000/svg">
+      <defs><clipPath id="pc${uid}"><path d="${pinPath}"/></clipPath></defs>
+      <g clip-path="url(#pc${uid})">${bands}</g>
+      <path d="${pinPath}" fill="none" stroke="#ffffff" stroke-width="1.5"/>
+      <circle cx="12.5" cy="12.5" r="5" fill="#ffffff"/>${badge}
     </svg>`;
     return L.divIcon({
       className: 'custom-svg-pin',
       html: svg,
-      iconSize: [25, 35],
+      iconSize: [31, 35],
       iconAnchor: [12.5, 35],
       popupAnchor: [0, -30]
     });
@@ -342,171 +367,45 @@
   // Initialize Map
   const map = L.map('map').setView([51.5074, -0.1278], 13);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
     maxZoom: 19
   }).addTo(map);
 
 
   // ==========================================================
-  // ENRICHED LOCATION DETAILS
-  // The Master Location Dataset supplies names, coordinates,
-  // neighborhood, Tube, addresses and any known specialty.
-  //
-  // The fields below provide structured planning guidance for
-  // every location. Location-specific values in rawLocations
-  // always override these category defaults.
+  // LOCATION DATA
+  // Every value comes from locations.js. There are NO category
+  // defaults: a field that is empty is simply not shown.
+  // A trailing * on a value means "lower confidence - verify".
   // ==========================================================
 
-  const detailDefaults = {
-    "Historic Pubs & Bars": {
-      setting: "Historic pub / traditional London interior; mostly walk-in seating",
-      reservations: "Walk-ins usually welcome; reservations recommended for meals, groups and peak periods",
-      hours: "Check venue before visiting; typical pub service is late morning through evening",
-      bestTime: "Weekdays 2:00–5:00 PM for a quieter visit; Fri/Sat before 5:00 PM",
-      worstTime: "Fri/Sat 6:00–9:00 PM, especially around dinner and major events",
-      specialty: "Historic pub atmosphere, traditional British drinks and characterful interiors"
-    },
-    "Pub Chains": {
-      setting: "Traditional British pub / casual pub dining",
-      reservations: "Usually walk-ins; booking useful for food, groups and busy evenings",
-      hours: "Typically late morning through late evening; check the individual venue",
-      bestTime: "Weekdays mid-afternoon or early evening",
-      worstTime: "Friday/Saturday evening",
-      specialty: "Classic London pub experience with food, drinks and a relaxed atmosphere"
-    },
-    "Casual Dining & Restaurants": {
-      setting: "Casual restaurant / café-style dining",
-      reservations: "Varies by venue; walk-ins often possible, but reservations are advisable at popular restaurants",
-      hours: "Typically lunch through dinner; check the individual venue",
-      bestTime: "Weekdays 2:00–5:00 PM or early dinner around 5:00 PM",
-      worstTime: "12:00–2:00 PM and 6:30–8:30 PM, especially Fri/Sat",
-      specialty: "Casual dining with a venue-specific signature dish or experience"
-    },
-    "Fast Casual": {
-      setting: "Counter-service / fast-casual restaurant",
-      reservations: "Usually not required; walk-in and counter service",
-      hours: "Typically lunch through evening; check the individual venue",
-      bestTime: "2:00–4:00 PM between meal rushes",
-      worstTime: "12:00–2:00 PM and 6:00–8:00 PM",
-      specialty: "Quick, approachable food with a venue-specific signature"
-    },
-    "Chain Grab & Go": {
-      setting: "Counter-service grab-and-go / takeaway",
-      reservations: "No reservations; walk-in / takeaway",
-      hours: "Typically daytime through early evening; check the individual branch",
-      bestTime: "10:00–11:30 AM or 2:00–4:00 PM",
-      worstTime: "Weekday lunch 12:00–2:00 PM",
-      specialty: "Convenient grab-and-go food for sightseeing days"
-    },
-    "Convenience Stores": {
-      setting: "Retail food / convenience store",
-      reservations: "Not applicable — walk-in retail",
-      hours: "Usually daytime through evening; individual branch hours vary",
-      bestTime: "Morning or mid-afternoon for the shortest queues",
-      worstTime: "Weekday lunch and immediately after work",
-      specialty: "Useful for snacks, drinks, picnic supplies and travel provisions"
-    },
-    "Coffee": {
-      setting: "Coffee shop / café",
-      reservations: "Usually not required; walk-ins welcome",
-      hours: "Generally morning through afternoon; check the individual café",
-      bestTime: "Early morning or 2:00–4:00 PM",
-      worstTime: "8:00–10:00 AM on weekdays and weekend late morning",
-      specialty: "Coffee, pastries and a convenient stop during sightseeing"
-    },
-    "Fish & Chips": {
-      setting: "Traditional fish-and-chip shop / casual restaurant",
-      reservations: "Usually walk-ins; reservations may be useful for sit-down venues",
-      hours: "Typically lunch through evening; check the individual venue",
-      bestTime: "2:00–4:00 PM or early dinner around 5:00 PM",
-      worstTime: "12:00–2:00 PM and 6:00–8:00 PM",
-      specialty: "Classic British fish & chips; individual venue specialties shown when known"
-    },
-    "Markets & Food Halls": {
-      setting: "Open-air market / covered market / food hall",
-      reservations: "No general reservation; individual food stalls may differ",
-      hours: "Market-specific and often day-of-week dependent; verify before visiting",
-      bestTime: "Opening time through late morning for browsing; early afternoon for food",
-      worstTime: "Weekend late morning through mid-afternoon",
-      specialty: "Multiple food, craft, vintage or specialty vendors in one destination"
-    },
-    "Shopping & Streets": {
-      setting: "Retail district, shop, market street or specialty store",
-      reservations: "Usually not required; some specialty experiences may require booking",
-      hours: "Generally daytime into early evening; individual shop hours vary",
-      bestTime: "Weekday late morning or early afternoon",
-      worstTime: "Saturday 12:00–4:00 PM",
-      specialty: "Shopping destination; see the venue-specific feature when supplied"
-    },
-    "Quirky Museums & Sites": {
-      setting: "Indoor museum / historic or cultural attraction",
-      reservations: "Varies; free museums may be walk-in while timed-entry attractions may require advance booking",
-      hours: "Usually daytime; closed days and last admission vary by museum",
-      bestTime: "Opening time or last 1–2 hours before closing",
-      worstTime: "Weekend 11:00 AM–3:00 PM and school holidays",
-      specialty: "Museum or unusual cultural attraction; venue-specific feature shown when known"
-    },
-    "Themed Afternoon Tea": {
-      setting: "Seated afternoon-tea experience / themed hospitality venue",
-      reservations: "Advance reservation strongly recommended; often essential",
-      hours: "Usually scheduled afternoon-tea sittings rather than all-day service",
-      bestTime: "Weekdays, especially the first or later sitting",
-      worstTime: "Saturday/Sunday afternoon and holiday periods",
-      specialty: "Themed afternoon tea or distinctive tea-room experience"
-    },
-    "Photo Spots & Public Art": {
-      setting: "Public space / architectural attraction / outdoor or immersive photo location",
-      reservations: "Usually none; some attractions may use timed entry",
-      hours: "Public-space access varies; indoor attractions follow venue hours",
-      bestTime: "Early morning for light and fewer people; golden hour for many exterior scenes",
-      worstTime: "Weekend midday and peak tourist hours",
-      specialty: "Photogenic landmark, architecture, public art or unusual visual experience"
-    },
-    "Iconic Landmarks & Museums": {
-      setting: "Major London landmark / public attraction",
-      reservations: "Varies; many are walk-up, while major paid attractions often benefit from timed tickets",
-      hours: "Attraction-specific; verify official hours and last entry",
-      bestTime: "Early morning or late afternoon; book timed entry where available",
-      worstTime: "Weekend 11:00 AM–4:00 PM and school holidays",
-      specialty: "Major London landmark or must-see attraction"
-    },
-    "Vintage & Thrift Shops": {
-      setting: "Vintage clothing / charity or thrift shop",
-      reservations: "Not required; walk-in retail",
-      hours: "Generally daytime into early evening; individual shop hours vary",
-      bestTime: "Weekday mornings or early afternoon for the best stock and space to browse",
-      worstTime: "Saturday 12:00-4:00 PM",
-      specialty: "Vintage, second-hand or thrift finds; see the venue-specific feature when supplied"
-    },
-    "Greggs Radar": {
-      setting: "Counter-service bakery / grab-and-go shop",
-      reservations: "No reservations; walk-in / takeaway",
-      hours: "Branch-specific; generally morning through evening",
-      bestTime: "Early morning or 2:00–4:00 PM",
-      worstTime: "Weekday lunch 12:00–2:00 PM",
-      specialty: "Greggs bakery, breakfast and grab-and-go staples"
-    }
-  };
-
   function getFormattedLoc(loc) {
-    const d = detailDefaults[loc.cat] || detailDefaults["Casual Dining & Restaurants"];
+    const cats = (Array.isArray(loc.cats) && loc.cats.length) ? loc.cats : (loc.cat ? [loc.cat] : []);
     return {
       name: loc.name,
-      cat: loc.cat,
+      cats: cats,
+      mustSee: cats.includes(MUST_SEE),
       type: loc.type || "Requested",
       lat: loc.lat,
       lng: loc.lng,
-      neighborhood: loc.neighborhood || "Central London",
-      address: loc.address || `${loc.name}, London, UK`,
-      tube: loc.tube || "Check nearest Tube station",
-      setting: loc.setting || d.setting,
-      reservations: loc.reservations || d.reservations,
-      hours: loc.hours || d.hours,
-      bestTime: loc.bestDaysTime || d.bestTime,
-      worstTime: loc.worstDaysTime || d.worstTime,
-      specialty: loc.specialty || d.specialty
+      approxCoords: !!loc.approxCoords,
+      neighborhood: loc.neighborhood || "",
+      address: loc.address || "",
+      tube: loc.tube || "",
+      setting: loc.setting || "",
+      ambiance: loc.ambiance || "",
+      reservations: loc.reservations || "",
+      hours: loc.hours || "",
+      bestTime: loc.bestDaysTime || "",
+      worstTime: loc.worstDaysTime || "",
+      specialty: loc.specialty || ""
     };
+  }
+
+  function catColor(cat) {
+    return (categoryColors[cat] && categoryColors[cat].color) || '#3b82f6';
   }
 
   function escapeHTML(value) {
@@ -521,17 +420,30 @@
   let markerStore = [];
   let userMarker = null;
 
+  function detailRow(label, value, cls) {
+    return value ? `<div class="${cls || 'popup-row'}"><strong>${label}:</strong> ${escapeHTML(value)}</div>` : '';
+  }
+
+  function hasAsterisk(loc) {
+    return loc.approxCoords || [loc.address, loc.tube, loc.neighborhood, loc.setting, loc.ambiance, loc.reservations,
+      loc.hours, loc.bestTime, loc.worstTime, loc.specialty].some(v => typeof v === 'string' && v.trim().endsWith('*'));
+  }
+
   function buildDetailsHTML(loc) {
     return `
       <div class="popup-details">
-        <div class="popup-row"><strong>Neighborhood:</strong> ${escapeHTML(loc.neighborhood)}</div>
-        <div class="popup-row"><strong>Tube:</strong> ${escapeHTML(loc.tube)}</div>
-        <div class="popup-row"><strong>Setting:</strong> ${escapeHTML(loc.setting)}</div>
-        <div class="popup-row"><strong>Reservations:</strong> ${escapeHTML(loc.reservations)}</div>
-        <div class="popup-row"><strong>Hours:</strong> ${escapeHTML(loc.hours)}</div>
-        <div class="popup-row"><strong>Best Days/Time:</strong> ${escapeHTML(loc.bestTime)}</div>
-        <div class="popup-row"><strong>Worst Days/Time:</strong> ${escapeHTML(loc.worstTime)}</div>
-        <div class="detail-specialty"><strong>Specialty / Feature / Main Attraction:</strong><br>${escapeHTML(loc.specialty)}</div>
+        ${detailRow('Address', loc.address)}
+        ${detailRow('Neighborhood', loc.neighborhood)}
+        ${detailRow('Tube', loc.tube)}
+        ${detailRow('Setting', loc.setting)}
+        ${detailRow('Ambiance', loc.ambiance)}
+        ${detailRow('Reservations', loc.reservations)}
+        ${detailRow('Hours', loc.hours)}
+        ${detailRow('Best Days/Time', loc.bestTime)}
+        ${detailRow('Worst Days/Time', loc.worstTime)}
+        ${loc.specialty ? `<div class="detail-specialty"><strong>Specialty / Feature / Main Attraction:</strong><br>${escapeHTML(loc.specialty)}</div>` : ''}
+        ${loc.approxCoords ? '<div class="data-note">Map position is approximate*</div>' : ''}
+        ${hasAsterisk(loc) ? '<div class="data-note">* Lower-confidence information \u2014 please verify before visiting.</div>' : ''}
       </div>`;
   }
 
@@ -542,33 +454,36 @@
         console.warn(`locations.js: entry #${i + 1} skipped (needs name, lat and lng as numbers):`, raw);
         return;
       }
-      if (!categoryColors[raw.cat]) console.warn(`locations.js: "${raw.name}" uses unknown category "${raw.cat}" (add it to categoryColors).`);
-      if (raw.type && raw.type !== "Requested" && raw.type !== "Suggested") console.warn(`locations.js: "${raw.name}" has type "${raw.type}"; use "Requested" or "Suggested".`);
       const loc = getFormattedLoc(raw);
-      const pinColor = (categoryColors[loc.cat] && categoryColors[loc.cat].color) || '#3b82f6';
-      const customIcon = createPinIcon(pinColor);
-      const m = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(map);
+      if (loc.cats.length === 0) { console.warn(`locations.js: "${raw.name}" has no category (use cats: ["..."]).`); return; }
+      loc.cats.forEach(c => { if (!categoryColors[c]) console.warn(`locations.js: "${raw.name}" uses unknown category "${c}" (add it to categoryColors).`); });
+      if (raw.type && raw.type !== "Requested" && raw.type !== "Suggested") console.warn(`locations.js: "${raw.name}" has type "${raw.type}"; use "Requested" or "Suggested".`);
+
+      const colors = loc.cats.map(catColor);
+      const m = L.marker([loc.lat, loc.lng], { icon: createPinIcon(colors, loc.mustSee) }).addTo(map);
 
       const typeBadgeClass = loc.type === "Suggested" ? "badge-suggested" : "badge-requested";
+      const catLine = loc.cats.map(c => `<span style="color:${catColor(c)}">${escapeHTML(c)}</span>`).join(' \u2022 ');
 
       const popupHTML = `
         <div class="popup-title-container">
           <div class="popup-title">${escapeHTML(loc.name)}</div>
-          <span class="sidebar-badge ${typeBadgeClass}">${escapeHTML(loc.type)}</span>
+          <span class="badge-container">
+            ${loc.mustSee ? '<span class="sidebar-badge badge-must">\u2605 Must See</span>' : ''}
+            <span class="sidebar-badge ${typeBadgeClass}">${escapeHTML(loc.type)}</span>
+          </span>
         </div>
-        <div class="popup-cat" style="color:${pinColor}">
-          ${escapeHTML(loc.cat)} • ${escapeHTML(loc.neighborhood)}
-        </div>
+        <div class="popup-cats">${catLine}</div>
         ${buildDetailsHTML(loc)}
         <div class="popup-link">
           <a href="https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}" target="_blank" rel="noopener">
-            🗺️ Open Directions in Google Maps
+            \ud83d\uddfa\ufe0f Open Directions in Google Maps
           </a>
         </div>
       `;
 
       m.bindPopup(popupHTML, { maxWidth: 340 });
-      markerStore.push({ marker: m, data: loc, color: pinColor });
+      markerStore.push({ marker: m, data: loc });
     });
 
     updateSidebar(markerStore);
@@ -587,7 +502,8 @@
   // (The Requested/Suggested checkboxes do not: they reset everything to collapsed.)
   function filtersActive() {
     return document.getElementById('search-box').value.trim() !== '' ||
-           document.getElementById('category-select').value !== 'ALL';
+           document.getElementById('category-select').value !== 'ALL' ||
+           document.getElementById('chk-must').checked;
   }
   function autoExpanding() {
     return filtersActive() && !suspendAutoExpand;
@@ -609,7 +525,8 @@
   function categoryOrder() {
     const order = Object.keys(categoryColors);
     rawLocations.forEach(l => {
-      if (l && l.cat && !order.includes(l.cat)) order.push(l.cat);
+      const cs = (l && Array.isArray(l.cats)) ? l.cats : (l && l.cat ? [l.cat] : []);
+      cs.forEach(c => { if (!order.includes(c)) order.push(c); });
     });
     return order;
   }
@@ -628,21 +545,29 @@
     const li = document.createElement('li');
     li.className = 'sidebar-item';
 
-    const typeBadgeClass = item.data.type === "Suggested" ? "badge-suggested" : "badge-requested";
+    const d = item.data;
+    const typeBadgeClass = d.type === "Suggested" ? "badge-suggested" : "badge-requested";
+    const chips = d.cats.map(c => `<span class="cat-chip"><i style="background:${catColor(c)}"></i>${escapeHTML(c)}</span>`).join('');
+    const sub = [d.neighborhood ? `\ud83d\udccd ${escapeHTML(d.neighborhood)}` : '', d.tube ? `\ud83d\ude87 ${escapeHTML(d.tube)}` : ''].filter(Boolean).join(' | ');
 
     li.innerHTML = `
-      <div class="sidebar-title">${escapeHTML(item.data.name)}</div>
-      <div class="sidebar-sub">📍 ${escapeHTML(item.data.neighborhood)} | 🚇 ${escapeHTML(item.data.tube)}</div>
+      <div class="sidebar-title">${escapeHTML(d.name)}</div>
+      ${sub ? `<div class="sidebar-sub">${sub}</div>` : ''}
+      <div class="cat-chips">${chips}</div>
       <div class="badge-container">
-        <span class="sidebar-badge ${typeBadgeClass}">${escapeHTML(item.data.type)}</span>
+        ${d.mustSee ? '<span class="sidebar-badge badge-must">\u2605 Must See</span>' : ''}
+        <span class="sidebar-badge ${typeBadgeClass}">${escapeHTML(d.type)}</span>
       </div>
       <div class="sidebar-detail">
-        <div class="detail-row"><strong>Setting:</strong> ${escapeHTML(item.data.setting)}</div>
-        <div class="detail-row"><strong>Reservations:</strong> ${escapeHTML(item.data.reservations)}</div>
-        <div class="detail-row"><strong>Hours:</strong> ${escapeHTML(item.data.hours)}</div>
-        <div class="detail-row"><strong>Best:</strong> ${escapeHTML(item.data.bestTime)}</div>
-        <div class="detail-row"><strong>Worst:</strong> ${escapeHTML(item.data.worstTime)}</div>
-        <div class="detail-specialty"><strong>Specialty / Feature:</strong><br>${escapeHTML(item.data.specialty)}</div>
+        ${detailRow('Address', d.address, 'detail-row')}
+        ${detailRow('Setting', d.setting, 'detail-row')}
+        ${detailRow('Ambiance', d.ambiance, 'detail-row')}
+        ${detailRow('Reservations', d.reservations, 'detail-row')}
+        ${detailRow('Hours', d.hours, 'detail-row')}
+        ${detailRow('Best', d.bestTime, 'detail-row')}
+        ${detailRow('Worst', d.worstTime, 'detail-row')}
+        ${d.specialty ? `<div class="detail-specialty"><strong>Specialty / Feature:</strong><br>${escapeHTML(d.specialty)}</div>` : ''}
+        ${hasAsterisk(d) ? '<div class="data-note">* Lower-confidence information \u2014 verify before visiting.</div>' : ''}
       </div>
     `;
 
@@ -668,8 +593,10 @@
     const groups = new Map();
     categoryOrder().forEach(cat => groups.set(cat, []));
     visibleItems.forEach(item => {
-      if (!groups.has(item.data.cat)) groups.set(item.data.cat, []);
-      groups.get(item.data.cat).push(item);
+      item.data.cats.forEach(c => {
+        if (!groups.has(c)) groups.set(c, []);
+        groups.get(c).push(item);
+      });
     });
 
     groups.forEach((items, cat) => {
@@ -719,23 +646,25 @@
     const catVal = document.getElementById('category-select').value;
     const showRequested = document.getElementById('chk-requested').checked;
     const showSuggested = document.getElementById('chk-suggested').checked;
+    const mustOnly = document.getElementById('chk-must').checked;
 
     const visibleItems = [];
 
     markerStore.forEach(item => {
       const d = item.data;
       const searchable = [
-        d.name, d.cat, d.type, d.neighborhood, d.tube, d.address,
-        d.setting, d.reservations, d.hours, d.bestTime, d.worstTime, d.specialty
+        d.name, d.cats.join(' '), d.type, d.neighborhood, d.tube, d.address,
+        d.setting, d.ambiance, d.reservations, d.hours, d.bestTime, d.worstTime, d.specialty
       ].join(" ").toLowerCase();
 
       const matchesSearch = !searchVal || searchable.includes(searchVal);
-      const matchesCat = catVal === 'ALL' || d.cat === catVal;
+      const matchesCat = catVal === 'ALL' || d.cats.includes(catVal);
+      const matchesMust = !mustOnly || d.mustSee;
       const matchesType =
         (d.type === 'Requested' && showRequested) ||
         (d.type === 'Suggested' && showSuggested);
 
-      if (matchesSearch && matchesCat && matchesType) {
+      if (matchesSearch && matchesCat && matchesMust && matchesType) {
         if (!map.hasLayer(item.marker)) map.addLayer(item.marker);
         visibleItems.push(item);
       } else if (map.hasLayer(item.marker)) {
@@ -746,11 +675,28 @@
     updateSidebar(visibleItems);
   }
 
+  // Must See checkbox and the MUST SEE dropdown entry behave the same way.
+  function mustChanged() {
+    const sel = document.getElementById('category-select');
+    const on = document.getElementById('chk-must').checked;
+    if (on && sel.value === 'ALL') sel.value = MUST_SEE;
+    if (!on && sel.value === MUST_SEE) sel.value = 'ALL';
+    filterMarkers(true);
+  }
+  function catChanged() {
+    const sel = document.getElementById('category-select');
+    const box = document.getElementById('chk-must');
+    if (sel.value === MUST_SEE) box.checked = true;
+    else if (sel.value === 'ALL') box.checked = false;
+    filterMarkers();
+  }
+
   function resetFilters() {
     document.getElementById('search-box').value = '';
     document.getElementById('category-select').value = 'ALL';
     document.getElementById('chk-requested').checked = true;
     document.getElementById('chk-suggested').checked = true;
+    document.getElementById('chk-must').checked = false;
     filterMarkers();
 
     if (userMarker) {
