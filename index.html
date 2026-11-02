@@ -183,7 +183,11 @@
     .cat-header.active-category { background:#dbeafe; box-shadow:inset 4px 0 0 var(--cat-color, #2563eb); }
     .cat-header.active-category .cat-name { color:#1d4ed8; }
     .cat-filter-button { border:0; background:transparent; color:#334155; font:inherit; font-weight:700; text-align:left; flex:1; min-width:0; padding:0; cursor:pointer; }
-    .cat-expand-button { width:30px; height:30px; flex:0 0 30px; display:grid; place-items:center; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#475569; cursor:pointer; touch-action:manipulation; }
+    .cat-expand-button { width:30px; height:30px; flex:0 0 30px; display:grid; place-items:center; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#475569; cursor:pointer; touch-action:manipulation; font-size:14px; transition:transform .15s ease; }
+    .cat-group.open .cat-expand-button { transform:rotate(90deg); }
+    #category-select option.must-see-option { color:#ffb800; font-weight:900; }
+    .cat-group[data-cat="MUST SEE"] .cat-filter-button { color:#e6a000; font-weight:900; }
+    .cat-group[data-cat="MUST SEE"] .cat-filter-button:hover { color:#ffbd00; }
     .cat-expand-button:focus-visible, .cat-filter-button:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
     .cat-chevron { font-size: 10px; color: #64748b; transition: transform 0.15s ease; width: 10px; }
     .cat-group.open .cat-chevron { transform: rotate(90deg); }
@@ -320,15 +324,15 @@
     const w = 25 / colors.length;
     const bands = colors.map((c, i) => `<rect x="${(i * w).toFixed(2)}" y="0" width="${(w + 0.4).toFixed(2)}" height="35" fill="${c}"/>`).join('');
     const pinPath = "M12.5 0C5.596 0 0 5.596 0 12.5C0 21.875 12.5 35 12.5 35C12.5 35 25 21.875 25 12.5C25 5.596 19.404 0 12.5 0Z";
-    const star = mustSee ? `<g transform="translate(12.5 13)" filter="url(#starShadow${uid})">
-      <path d="M0,-8.1 L2.35,-2.65 L6.9,-2.15 L3.15,1.55 L4.25,6.3 L0,4.45 L-4.25,6.3 L-3.15,1.55 L-6.9,-2.15 L-2.35,-2.65 Z" fill="url(#goldStar${uid})" stroke="#3f2b08" stroke-width="1.45" stroke-linejoin="round"/>
-      <path d="M0,-6.4 L1.65,-2.1 L4.9,-1.75 L2.2,1.0 L3.1,4.55 L0,3.05 L-3.1,4.55 L-2.2,1.0 L-4.9,-1.75 L-1.65,-2.1 Z" fill="none" stroke="#fff2b2" stroke-width=".65" opacity=".95"/>
-      <path d="M-1.5,-5.3 L0,-7 L1.4,-3.2 L-1,-2.8 Z" fill="#fff8d6" opacity=".9"/>
+    const star = mustSee ? `<g transform="translate(12.5 13) scale(1.16)" filter="url(#starShadow${uid})">
+      <path d="M0,-8.1 L2.35,-2.65 L6.9,-2.15 L3.15,1.55 L4.25,6.3 L0,4.45 L-4.25,6.3 L-3.15,1.55 L-6.9,-2.15 L-2.35,-2.65 Z" fill="url(#goldStar${uid})" stroke="#4a2600" stroke-width="1.35" stroke-linejoin="round"/>
+      <path d="M0,-6.4 L1.65,-2.1 L4.9,-1.75 L2.2,1.0 L3.1,4.55 L0,3.05 L-3.1,4.55 L-2.2,1.0 L-4.9,-1.75 L-1.65,-2.1 Z" fill="none" stroke="#ffffff" stroke-width=".8" opacity="1"/>
+      <path d="M-1.5,-5.3 L0,-7 L1.4,-3.2 L-1,-2.8 Z" fill="#ffffff" opacity="1"/>
     </g>` : '';
     const svg = `<svg width="39" height="43" viewBox="-3 -3 39 43" xmlns="http://www.w3.org/2000/svg">
       <defs><clipPath id="pc${uid}"><path d="${pinPath}"/></clipPath>
-      <linearGradient id="goldStar${uid}" x1="0" y1="-1" x2=".65" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#fff4a8"/><stop offset=".38" stop-color="#f8d64e"/><stop offset=".72" stop-color="#d49a16"/><stop offset="1" stop-color="#8c5a08"/></linearGradient>
-      <filter id="starShadow${uid}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur in="SourceAlpha" stdDeviation="1.05" result="blur"/><feOffset dy="1" result="offset"/><feComponentTransfer><feFuncA type="linear" slope=".75"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+      <linearGradient id="goldStar${uid}" x1="0" y1="-1" x2=".65" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#ffffff"/><stop offset=".22" stop-color="#fff98a"/><stop offset=".52" stop-color="#ffdf24"/><stop offset=".78" stop-color="#ffad00"/><stop offset="1" stop-color="#e87900"/></linearGradient>
+      <filter id="starShadow${uid}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur in="SourceAlpha" stdDeviation="1.35" result="blur"/><feOffset dy=".8" result="offset"/><feFlood flood-color="#fff36a" flood-opacity=".9" result="glowColor"/><feComposite in="glowColor" in2="SourceAlpha" operator="in" result="glow"/><feMerge><feMergeNode in="blur"/><feMergeNode in="glow"/><feMergeNode in="offset"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
       <g clip-path="url(#pc${uid})">${bands}</g>
       <path d="${pinPath}" fill="none" stroke="#ffffff" stroke-width="1.5"/>
       ${star}
@@ -483,16 +487,8 @@
   // even if a search is active. Cleared again as soon as search/category changes.
   let suspendAutoExpand = false;
 
-  // Searching or picking a category auto-expands the groups that have matches.
-  // (The Requested/Suggested checkboxes do not: they reset everything to collapsed.)
-  function filtersActive() {
-    return document.getElementById('search-box').value.trim() !== '' ||
-           document.getElementById('category-select').value !== 'ALL' ||
-           document.getElementById('chk-must').checked;
-  }
-  function autoExpanding() {
-    return filtersActive() && !suspendAutoExpand;
-  }
+  // Filtering never expands a category. Only its triangle controls expansion.
+  function autoExpanding() { return false; }
 
   // Expand all / Collapse all buttons: act on the groups currently shown.
   function setAllGroups(open) {
@@ -519,15 +515,16 @@
 
   function populateCategorySelect() {
     const sel = document.getElementById('category-select');
+    const allOpt = document.createElement('option');
+    allOpt.value = 'ALL'; allOpt.textContent = 'All Categories';
+    sel.appendChild(allOpt);
     categoryOrder().forEach(cat => {
       const opt = document.createElement('option');
       opt.value = cat;
       opt.textContent = cat;
+      if (cat === MUST_SEE) { opt.textContent = '★ MUST SEE'; opt.className = 'must-see-option'; }
       sel.appendChild(opt);
     });
-    const allOpt = document.createElement('option');
-    allOpt.value = 'ALL'; allOpt.textContent = 'All Categories';
-    sel.insertBefore(allOpt, sel.options[1] || null);
   }
 
   function buildSidebarItem(item) {
@@ -560,14 +557,14 @@
       </div>
     `;
 
-    li.onclick = () => {
-      document.querySelectorAll('.sidebar-item.expanded').forEach(el => {
-        if (el !== li) el.classList.remove('expanded');
-      });
-      li.classList.toggle('expanded');
+    // Selecting a location centers the map and opens its popup; it does not
+    // expand/collapse the containing category. Category expansion is triangle-only.
+    li.querySelector('.sidebar-title').style.cursor = 'pointer';
+    li.querySelector('.sidebar-title').addEventListener('click', (event) => {
+      event.stopPropagation();
       map.setView([item.data.lat, item.data.lng], 16);
       item.marker.openPopup();
-    };
+    });
     return li;
   }
 
@@ -581,8 +578,12 @@
 
     const groups = new Map();
     categoryOrder().forEach(cat => groups.set(cat, []));
+    const selectedCategory = document.getElementById('category-select').value;
     visibleItems.forEach(item => {
-      item.data.cats.forEach(c => {
+      const categoriesForSidebar = selectedCategory !== 'ALL'
+        ? [selectedCategory]
+        : item.data.cats;
+      categoriesForSidebar.forEach(c => {
         if (!groups.has(c)) groups.set(c, []);
         groups.get(c).push(item);
       });
@@ -592,8 +593,8 @@
       if (items.length === 0) return;
 
       const color = (categoryColors[cat] && categoryColors[cat].color) || '#3b82f6';
-      // Collapsed by default; while searching/filtering, groups with matches open automatically.
-      const isOpen = active ? !filterClosed.has(cat) : openCats.has(cat);
+      // Groups remain collapsed until the user explicitly clicks their triangle.
+      const isOpen = openCats.has(cat);
 
       const group = document.createElement('li');
       group.className = 'cat-group' + (isOpen ? ' open' : '');
