@@ -15,7 +15,7 @@
 //
 //  FIELD NOTES
 //  - cats: one or more category names; first is the primary category.
-//  - Include "MUST SEE" in cats to flag a place as a must-see.
+//  - Include "MUST SEE" in cats to flag a place as a must-see; it is rendered as a separate gold star badge, not a category pin band.
 //  - type: "Requested" or "Suggested".
 //  - A trailing * on a value means lower confidence - verify before visiting.
 //  - approxCoords: true means the map position is approximate.
@@ -23,7 +23,7 @@
 // =====================================================================
 
 // Update this whenever you change the code or the data (YYYY-MM-DD).
-const LAST_REVISED = "2026-10-30";
+const LAST_REVISED = "2026-11-02";
 
 // Category colours. Order here = order in the dropdown and sidebar.
 const categoryColors = {
@@ -33,7 +33,7 @@ const categoryColors = {
   "Markets & Food Halls": { color: "#10b981" },
   "Shopping & Streets": { color: "#ec4899" },
   "Iconic Landmarks & Museums": { color: "#3b82f6" },
-  "Greggs Radar": { color: "#00598E" },
+  "Greggs Radar": { color: "#00558F" },
   "Quirky Museums & Sites": { color: "#06b6d4" },
   "Themed Afternoon Tea": { color: "#d946ef" },
   "Photo Spots & Public Art": { color: "#84cc16" },

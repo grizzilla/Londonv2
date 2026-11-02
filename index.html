@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="referrer" content="origin-when-cross-origin" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>London Explorer & Greggs Radar</title>
+  <title>Team Ivy London Explorer</title>
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
@@ -17,9 +17,10 @@
     /* Compact, two-row control bar */
     #controls { background:#1e293b; color:#fff; padding:8px 12px; display:flex; flex-wrap:wrap; gap:7px 10px; align-items:center; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,.2); }
     .control-row { display:flex; align-items:center; gap:7px; min-width:0; }
-    .control-row-search { flex:1 1 260px; }
+    .control-row-search { flex:1 1 520px; }
     .control-row-filters { flex:0 1 auto; }
-    #search-box { flex:1 1 180px; min-width:0; padding:8px 12px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:#fff; font-size:14px; }
+    .app-brand { flex:0 0 auto; color:#fff; font-size:15px; font-weight:800; letter-spacing:.15px; white-space:nowrap; margin-right:3px; }
+    #search-box { flex:1 1 180px; min-width:90px; padding:8px 12px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:#fff; font-size:14px; }
     #category-select { min-width:0; max-width: min(48vw, 300px); padding:8px 10px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:#fff; font-size:14px; }
     .about-icon { width:36px; height:36px; padding:0; flex:0 0 36px; font-size:22px; line-height:1; border-radius:50%; }
 
@@ -60,6 +61,8 @@
       cursor: pointer;
     }
     .btn:active { background: #1d4ed8; }
+    .btn-reset { background:#475569; flex:0 0 auto; white-space:nowrap; }
+    .btn-reset:hover { background:#64748b; }
 
     /* Resizable map / location-list workspace */
     #main-content { display:flex; flex:1; min-height:0; min-width:0; overflow:hidden; }
@@ -218,7 +221,9 @@
     /* Phone portrait: map above a vertically resizable bottom list. */
     @media (max-width: 700px) and (orientation: portrait) {
       #controls { padding:6px 8px; gap:5px; }
-      .control-row-search { flex:1 1 100%; }
+      .control-row-search { flex:1 1 100%; gap:5px; }
+      .app-brand { flex:0 0 100%; font-size:14px; line-height:1.25; }
+      #search-box { flex:1 1 100%; }
       .control-row-filters { flex:1 1 100%; }
       #category-select { flex:1 1 auto; max-width:none; }
       .control-row-filters .btn { padding:8px 9px; font-size:12px; white-space:nowrap; }
@@ -233,7 +238,9 @@
     /* Phone landscape: list at left, map at right; drag the vertical divider. */
     @media (max-width: 900px) and (orientation: landscape) and (max-height: 600px) {
       #controls { padding:5px 8px; gap:5px 8px; }
-      .control-row-search { flex:1 1 210px; }
+      .control-row-search { flex:1 1 430px; }
+      .app-brand { font-size:12px; }
+      #search-box { min-width:80px; }
       .control-row-filters { flex:1 1 auto; }
       .filter-type-group { padding:4px 7px; gap:8px; font-size:11px; }
       .control-row-filters .btn { padding:6px 8px; font-size:12px; }
@@ -255,16 +262,17 @@
 <div id="app-container">
   <div id="controls">
     <div class="control-row control-row-search">
+      <span class="app-brand">Team Ivy London Explorer</span>
       <input type="text" id="search-box" placeholder="Search locations..." onkeyup="filterMarkers()" />
-      <button class="btn btn-secondary about-icon" id="about-btn" onclick="showAbout()" aria-label="About" title="About">ⓘ</button>
+      <button class="btn btn-reset" id="reset-btn" type="button" onclick="resetFilters()" title="Reset all filters and return to the London starting view">↺ Reset</button>
+      <button class="btn btn-secondary about-icon" id="about-btn" onclick="showAbout()" aria-label="Info" title="Info">ⓘ</button>
     </div>
     <div class="control-row control-row-filters">
       <select id="category-select" onchange="catChanged()">
         <option value="ALL">All Categories</option>
         <!-- categories are filled in automatically from locations.js -->
       </select>
-      <button class="btn" onclick="resetFilters()">↺ Reset</button>
-      <button class="btn" onclick="locateUser()">📍 Find Closest</button>
+      <button class="btn" type="button" onclick="locateUser()">📍 Find Closest</button>
     </div>
     <div class="filter-type-group">
       <label class="filter-type-label"><input type="checkbox" id="chk-requested" checked onchange="filterMarkers(true)" /> Requested</label>
@@ -291,7 +299,7 @@
 <!-- About dialog -->
 <div id="about-overlay" onclick="if (event.target === this) hideAbout()">
   <div id="about-card" role="dialog" aria-modal="true" aria-labelledby="about-title">
-    <h2 id="about-title">London Explorer &amp; Greggs Radar</h2>
+    <h2 id="about-title">Team Ivy London Explorer</h2>
     <div class="about-row"><strong>Last revised:</strong> <span id="about-date"></span></div>
     <div class="about-row"><strong>Locations:</strong> <span id="about-count"></span></div>
     <button class="btn" onclick="hideAbout()">Close</button>
@@ -440,7 +448,10 @@
       loc.cats.forEach(c => { if (!categoryColors[c]) console.warn(`locations.js: "${raw.name}" uses unknown category "${c}" (add it to categoryColors).`); });
       if (raw.type && raw.type !== "Requested" && raw.type !== "Suggested") console.warn(`locations.js: "${raw.name}" has type "${raw.type}"; use "Requested" or "Suggested".`);
 
-      const colors = loc.cats.map(catColor);
+      // MUST SEE is a separate gold badge, never a category-color band.
+      // This keeps the star visible and visually independent for 1–4 real categories.
+      const pinCategories = loc.cats.filter(cat => cat !== MUST_SEE);
+      const colors = (pinCategories.length ? pinCategories : [loc.cats[0]]).map(catColor);
       const m = L.marker([loc.lat, loc.lng], { icon: createPinIcon(colors, loc.mustSee) }).addTo(map);
 
       const typeBadgeClass = loc.type === "Suggested" ? "badge-suggested" : "badge-requested";
