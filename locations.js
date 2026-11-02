@@ -15,7 +15,7 @@
 //
 //  FIELD NOTES
 //  - cats: one or more category names; first is the primary category.
-//  - Include "MUST SEE" in cats to flag a place as a must-see; it is rendered as a separate gold star badge, not a category pin band.
+//  - Include "MUST SEE" in cats to flag a place as a must-see.
 //  - type: "Requested" or "Suggested".
 //  - A trailing * on a value means lower confidence - verify before visiting.
 //  - approxCoords: true means the map position is approximate.

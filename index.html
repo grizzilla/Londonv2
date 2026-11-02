@@ -17,10 +17,9 @@
     /* Compact, two-row control bar */
     #controls { background:#1e293b; color:#fff; padding:8px 12px; display:flex; flex-wrap:wrap; gap:7px 10px; align-items:center; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,.2); }
     .control-row { display:flex; align-items:center; gap:7px; min-width:0; }
-    .control-row-search { flex:1 1 520px; }
+    .control-row-search { flex:1 1 260px; }
     .control-row-filters { flex:0 1 auto; }
-    .app-brand { flex:0 0 auto; color:#fff; font-size:15px; font-weight:800; letter-spacing:.15px; white-space:nowrap; margin-right:3px; }
-    #search-box { flex:1 1 180px; min-width:90px; padding:8px 12px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:#fff; font-size:14px; }
+    #search-box { flex:1 1 180px; min-width:0; padding:8px 12px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:#fff; font-size:14px; }
     #category-select { min-width:0; max-width: min(48vw, 300px); padding:8px 10px; border-radius:6px; border:1px solid #475569; background:#0f172a; color:#fff; font-size:14px; }
     .about-icon { width:36px; height:36px; padding:0; flex:0 0 36px; font-size:22px; line-height:1; border-radius:50%; }
 
@@ -61,8 +60,6 @@
       cursor: pointer;
     }
     .btn:active { background: #1d4ed8; }
-    .btn-reset { background:#475569; flex:0 0 auto; white-space:nowrap; }
-    .btn-reset:hover { background:#64748b; }
 
     /* Resizable map / location-list workspace */
     #main-content { display:flex; flex:1; min-height:0; min-width:0; overflow:hidden; }
@@ -103,7 +100,7 @@
 
     /* SVG Pin Styling */
     .custom-svg-pin { background: transparent; border: none; }
-    .custom-svg-pin svg { filter: drop-shadow(0 2px 3px rgba(0,0,0,.55)); }
+    .custom-svg-pin svg { overflow:visible; filter: drop-shadow(0 2px 3px rgba(0,0,0,.58)); }
 
     /* Custom Popup Styles */
     .leaflet-popup-content-wrapper { border-radius: 8px; padding: 4px; max-width: 310px; }
@@ -183,6 +180,11 @@
       color: #0f172a;
     }
     .cat-header:hover { background: #e2e8f0; }
+    .cat-header.active-category { background:#dbeafe; box-shadow:inset 4px 0 0 var(--cat-color, #2563eb); }
+    .cat-header.active-category .cat-name { color:#1d4ed8; }
+    .cat-filter-button { border:0; background:transparent; color:#334155; font:inherit; font-weight:700; text-align:left; flex:1; min-width:0; padding:0; cursor:pointer; }
+    .cat-expand-button { width:30px; height:30px; flex:0 0 30px; display:grid; place-items:center; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#475569; cursor:pointer; touch-action:manipulation; }
+    .cat-expand-button:focus-visible, .cat-filter-button:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
     .cat-chevron { font-size: 10px; color: #64748b; transition: transform 0.15s ease; width: 10px; }
     .cat-group.open .cat-chevron { transform: rotate(90deg); }
     .cat-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
@@ -221,9 +223,7 @@
     /* Phone portrait: map above a vertically resizable bottom list. */
     @media (max-width: 700px) and (orientation: portrait) {
       #controls { padding:6px 8px; gap:5px; }
-      .control-row-search { flex:1 1 100%; gap:5px; }
-      .app-brand { flex:0 0 100%; font-size:14px; line-height:1.25; }
-      #search-box { flex:1 1 100%; }
+      .control-row-search { flex:1 1 100%; }
       .control-row-filters { flex:1 1 100%; }
       #category-select { flex:1 1 auto; max-width:none; }
       .control-row-filters .btn { padding:8px 9px; font-size:12px; white-space:nowrap; }
@@ -238,9 +238,7 @@
     /* Phone landscape: list at left, map at right; drag the vertical divider. */
     @media (max-width: 900px) and (orientation: landscape) and (max-height: 600px) {
       #controls { padding:5px 8px; gap:5px 8px; }
-      .control-row-search { flex:1 1 430px; }
-      .app-brand { font-size:12px; }
-      #search-box { min-width:80px; }
+      .control-row-search { flex:1 1 210px; }
       .control-row-filters { flex:1 1 auto; }
       .filter-type-group { padding:4px 7px; gap:8px; font-size:11px; }
       .control-row-filters .btn { padding:6px 8px; font-size:12px; }
@@ -262,17 +260,15 @@
 <div id="app-container">
   <div id="controls">
     <div class="control-row control-row-search">
-      <span class="app-brand">Team Ivy London Explorer</span>
       <input type="text" id="search-box" placeholder="Search locations..." onkeyup="filterMarkers()" />
-      <button class="btn btn-reset" id="reset-btn" type="button" onclick="resetFilters()" title="Reset all filters and return to the London starting view">↺ Reset</button>
-      <button class="btn btn-secondary about-icon" id="about-btn" onclick="showAbout()" aria-label="Info" title="Info">ⓘ</button>
+      <button class="btn btn-secondary about-icon" id="about-btn" onclick="showAbout()" aria-label="About" title="About">ⓘ</button>
     </div>
     <div class="control-row control-row-filters">
       <select id="category-select" onchange="catChanged()">
-        <option value="ALL">All Categories</option>
-        <!-- categories are filled in automatically from locations.js -->
+        <!-- categories are populated in the requested order -->
       </select>
-      <button class="btn" type="button" onclick="locateUser()">📍 Find Closest</button>
+      <button class="btn" onclick="resetFilters()">↺ Reset</button>
+      <button class="btn" onclick="locateUser()">📍 Find Closest</button>
     </div>
     <div class="filter-type-group">
       <label class="filter-type-label"><input type="checkbox" id="chk-requested" checked onchange="filterMarkers(true)" /> Requested</label>
@@ -317,32 +313,32 @@
   const MUST_SEE = "MUST SEE";
   let pinSeq = 0;
 
-  // SVG pin: one colour per category (vertical bands); gold star badge for Must See places.
+  // Category colours remain segmented inside the pin. The independent Must See star
+  // is a prominent dimensional gold overlay and never becomes a category segment.
   function createPinIcon(colors, mustSee) {
     const uid = ++pinSeq;
     const w = 25 / colors.length;
     const bands = colors.map((c, i) => `<rect x="${(i * w).toFixed(2)}" y="0" width="${(w + 0.4).toFixed(2)}" height="35" fill="${c}"/>`).join('');
     const pinPath = "M12.5 0C5.596 0 0 5.596 0 12.5C0 21.875 12.5 35 12.5 35C12.5 35 25 21.875 25 12.5C25 5.596 19.404 0 12.5 0Z";
-    const badge = mustSee
-      ? `<circle cx="25" cy="6" r="6" fill="#D4AF37" stroke="#ffffff" stroke-width="1.2"/><text x="25" y="9.4" font-size="9" text-anchor="middle" fill="#1e293b" font-family="Arial,sans-serif">\u2605</text>`
-      : '';
-    const svg = `<svg width="31" height="35" viewBox="0 0 31 35" xmlns="http://www.w3.org/2000/svg">
-      <defs><clipPath id="pc${uid}"><path d="${pinPath}"/></clipPath></defs>
+    const star = mustSee ? `<g transform="translate(12.5 13)" filter="url(#starShadow${uid})">
+      <path d="M0,-8.1 L2.35,-2.65 L6.9,-2.15 L3.15,1.55 L4.25,6.3 L0,4.45 L-4.25,6.3 L-3.15,1.55 L-6.9,-2.15 L-2.35,-2.65 Z" fill="url(#goldStar${uid})" stroke="#3f2b08" stroke-width="1.45" stroke-linejoin="round"/>
+      <path d="M0,-6.4 L1.65,-2.1 L4.9,-1.75 L2.2,1.0 L3.1,4.55 L0,3.05 L-3.1,4.55 L-2.2,1.0 L-4.9,-1.75 L-1.65,-2.1 Z" fill="none" stroke="#fff2b2" stroke-width=".65" opacity=".95"/>
+      <path d="M-1.5,-5.3 L0,-7 L1.4,-3.2 L-1,-2.8 Z" fill="#fff8d6" opacity=".9"/>
+    </g>` : '';
+    const svg = `<svg width="39" height="43" viewBox="-3 -3 39 43" xmlns="http://www.w3.org/2000/svg">
+      <defs><clipPath id="pc${uid}"><path d="${pinPath}"/></clipPath>
+      <linearGradient id="goldStar${uid}" x1="0" y1="-1" x2=".65" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#fff4a8"/><stop offset=".38" stop-color="#f8d64e"/><stop offset=".72" stop-color="#d49a16"/><stop offset="1" stop-color="#8c5a08"/></linearGradient>
+      <filter id="starShadow${uid}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur in="SourceAlpha" stdDeviation="1.05" result="blur"/><feOffset dy="1" result="offset"/><feComponentTransfer><feFuncA type="linear" slope=".75"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
       <g clip-path="url(#pc${uid})">${bands}</g>
       <path d="${pinPath}" fill="none" stroke="#ffffff" stroke-width="1.5"/>
-      <circle cx="12.5" cy="12.5" r="5" fill="#ffffff"/>${badge}
+      ${star}
     </svg>`;
-    return L.divIcon({
-      className: 'custom-svg-pin',
-      html: svg,
-      iconSize: [31, 35],
-      iconAnchor: [12.5, 35],
-      popupAnchor: [0, -30]
-    });
+    return L.divIcon({ className:'custom-svg-pin', html:svg, iconSize:[39,43], iconAnchor:[12.5,40], popupAnchor:[0,-36] });
   }
 
   // Initialize Map
-  const map = L.map('map').setView([51.5074, -0.1278], 13);
+  const HOTEL_CENTER = [51.5101, -0.1265]; // St Martins Lane Hotel, Covent Garden
+  const map = L.map('map').setView(HOTEL_CENTER, 14);
 
   // Basemap: OpenStreetMap first (as in v1). If OSM refuses the tiles
   // (e.g. page opened without a referrer), switch automatically to Esri.
@@ -448,10 +444,7 @@
       loc.cats.forEach(c => { if (!categoryColors[c]) console.warn(`locations.js: "${raw.name}" uses unknown category "${c}" (add it to categoryColors).`); });
       if (raw.type && raw.type !== "Requested" && raw.type !== "Suggested") console.warn(`locations.js: "${raw.name}" has type "${raw.type}"; use "Requested" or "Suggested".`);
 
-      // MUST SEE is a separate gold badge, never a category-color band.
-      // This keeps the star visible and visually independent for 1–4 real categories.
-      const pinCategories = loc.cats.filter(cat => cat !== MUST_SEE);
-      const colors = (pinCategories.length ? pinCategories : [loc.cats[0]]).map(catColor);
+      const colors = loc.cats.map(catColor);
       const m = L.marker([loc.lat, loc.lng], { icon: createPinIcon(colors, loc.mustSee) }).addTo(map);
 
       const typeBadgeClass = loc.type === "Suggested" ? "badge-suggested" : "badge-requested";
@@ -513,14 +506,15 @@
     });
   }
 
-  // Known categories (in locations.js order), then any extras found in the data.
+  // MUST SEE is deliberately first; every other category is alphabetized identically
+  // in the top picker and sidebar. Category colors remain sourced from locations.js.
   function categoryOrder() {
-    const order = Object.keys(categoryColors);
+    const all = Object.keys(categoryColors);
     rawLocations.forEach(l => {
       const cs = (l && Array.isArray(l.cats)) ? l.cats : (l && l.cat ? [l.cat] : []);
-      cs.forEach(c => { if (!order.includes(c)) order.push(c); });
+      cs.forEach(c => { if (!all.includes(c)) all.push(c); });
     });
-    return order;
+    return [MUST_SEE, ...all.filter(c => c !== MUST_SEE).sort((a,b) => a.localeCompare(b, 'en', {sensitivity:'base'}))];
   }
 
   function populateCategorySelect() {
@@ -531,6 +525,9 @@
       opt.textContent = cat;
       sel.appendChild(opt);
     });
+    const allOpt = document.createElement('option');
+    allOpt.value = 'ALL'; allOpt.textContent = 'All Categories';
+    sel.insertBefore(allOpt, sel.options[1] || null);
   }
 
   function buildSidebarItem(item) {
@@ -602,21 +599,36 @@
       group.className = 'cat-group' + (isOpen ? ' open' : '');
       group.dataset.cat = cat;
 
-      const header = document.createElement('button');
-      header.type = 'button';
+      const header = document.createElement('div');
       header.className = 'cat-header';
+      header.setAttribute('role', 'group');
+      header.setAttribute('aria-label', `${cat} category controls`);
       header.setAttribute('aria-expanded', String(isOpen));
+      header.style.setProperty('--cat-color', color);
+      const activeCat = document.getElementById('category-select').value === cat;
       header.innerHTML = `
-        <span class="cat-chevron">▶</span>
+        <button type="button" class="cat-expand-button" aria-label="${isOpen ? 'Collapse' : 'Expand'} ${escapeHTML(cat)}" aria-expanded="${isOpen}">▶</button>
         <span class="cat-dot" style="background:${color}"></span>
-        <span class="cat-name">${escapeHTML(cat)}</span>
+        <button type="button" class="cat-filter-button" aria-pressed="${activeCat}">${escapeHTML(cat)}</button>
         <span class="cat-count">${items.length}</span>`;
-      header.onclick = () => {
+      if (activeCat) header.classList.add('active-category');
+      const expandButton = header.querySelector('.cat-expand-button');
+      expandButton.onclick = (event) => {
+        event.stopPropagation();
         const nowOpen = !group.classList.contains('open');
         group.classList.toggle('open', nowOpen);
-        header.setAttribute('aria-expanded', String(nowOpen));
+        expandButton.setAttribute('aria-expanded', String(nowOpen));
+        expandButton.setAttribute('aria-label', `${nowOpen ? 'Collapse' : 'Expand'} ${cat}`);
         if (autoExpanding()) { nowOpen ? filterClosed.delete(cat) : filterClosed.add(cat); }
         else                 { nowOpen ? openCats.add(cat)       : openCats.delete(cat); }
+      };
+      header.querySelector('.cat-filter-button').onclick = (event) => {
+        event.stopPropagation();
+        const sel = document.getElementById('category-select');
+        sel.value = cat;
+        const mustBox = document.getElementById('chk-must');
+        mustBox.checked = cat === MUST_SEE;
+        filterMarkers();
       };
 
       const body = document.createElement('ul');
@@ -696,7 +708,7 @@
       userMarker = null;
     }
 
-    map.setView([51.5074, -0.1278], 13);
+    setInitialMapPosition(HOTEL_CENTER);
   }
 
   function locateUser() {
@@ -809,8 +821,45 @@
     window.addEventListener('resize', () => map.invalidateSize({ pan:false }));
   })();
 
+
+  // Approximate UK land envelope with Ireland excluded; GPS is used only when
+  // the reported point falls within this UK test. GPS failures fall back to hotel.
+  function isWithinUK(lat, lng) {
+    const inGreatBritain = lat >= 49.8 && lat <= 59.5 && lng >= -6.5 && lng <= 1.9;
+    const inNorthernIreland = lat >= 54.0 && lat <= 55.35 && lng >= -8.2 && lng <= -5.3;
+    return inGreatBritain || inNorthernIreland;
+  }
+
+  function calculateInitialZoom(center) {
+    const distances = markerStore.map(x => map.distance(center, [x.data.lat, x.data.lng])).sort((a,b) => a-b);
+    if (!distances.length) return 14;
+    const radius70 = distances[Math.min(distances.length - 1, Math.floor((distances.length - 1) * 0.70))];
+    const rect = document.getElementById('map').getBoundingClientRect();
+    const usableRadiusPx = Math.max(150, Math.min(rect.width, rect.height) * 0.42);
+    const metersPerPixelAtZoom0 = 156543.03392 * Math.cos(center[0] * Math.PI / 180);
+    const rawZoom = Math.log2((usableRadiusPx * metersPerPixelAtZoom0) / Math.max(radius70, 250));
+    return Math.max(12, Math.min(16, Math.floor(rawZoom)));
+  }
+
+  function setInitialMapPosition(center) {
+    const zoom = calculateInitialZoom(center);
+    map.setView(center, Math.max(14, zoom), { animate:false });
+    setTimeout(() => map.invalidateSize({ pan:false }), 100);
+  }
+
+  function initializeMapPosition() {
+    setInitialMapPosition(HOTEL_CENTER);
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(pos => {
+      const point = [pos.coords.latitude, pos.coords.longitude];
+      if (isWithinUK(point[0], point[1])) setInitialMapPosition(point);
+      else setInitialMapPosition(HOTEL_CENTER);
+    }, () => setInitialMapPosition(HOTEL_CENTER), { enableHighAccuracy:false, timeout:7000, maximumAge:300000 });
+  }
+
   populateCategorySelect();
   loadMarkers();
+  initializeMapPosition();
 </script>
 </body>
 </html>
